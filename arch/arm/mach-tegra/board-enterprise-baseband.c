@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-enterprise-baseband.c
  *
- * Copyright (c) 2011-2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011-2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,11 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/platform_data/tegra_usb.h>
-#include <mach/tegra_usb_modem_power.h>
+
+#include <mach/pinmux-tegra30.h>
+#include <linux/platform_data/tegra_usb_modem_power.h>
+#include <mach/gpio-tegra.h>
+
 #include "devices.h"
 #include "gpio-names.h"
 
@@ -61,7 +65,6 @@ static struct tegra_usb_platform_data tegra_ehci2_ulpi_null_pdata = {
 	.op_mode	= TEGRA_USB_OPMODE_HOST,
 	.u_data.host = {
 		.vbus_gpio = -1,
-		.vbus_reg = NULL,
 		.hot_plug = true,
 		.remote_wakeup_supported = false,
 		.power_off_on_suspend = true,
@@ -109,6 +112,14 @@ static void baseband_reset(void)
 	gpio_set_value(MODEM_PWR_ON, 1);
 }
 
+static void baseband_stop(void)
+{
+	/* Baseband power off */
+	pr_info("%s\n", __func__);
+	gpio_set_value(MODEM_PWR_ON, 0);
+	mdelay(1);
+}
+
 static int baseband_init(void)
 {
 	int ret;
@@ -135,6 +146,7 @@ static const struct tegra_modem_operations baseband_operations = {
 	.init = baseband_init,
 	.start = baseband_start,
 	.reset = baseband_reset,
+	.stop = baseband_stop,
 };
 
 static struct tegra_usb_modem_power_platform_data baseband_pdata = {

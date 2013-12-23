@@ -23,15 +23,13 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <mach/io.h>
-#include <linux/io.h>
 #include <mach/iomap.h>
 #include <mach/kbc.h>
-#include <linux/gpio_keys.h>
 
 #include "board.h"
 #include "board-enterprise.h"
 #include "devices.h"
-#include "gpio-names.h"
+
 #define ENTERPRISE_ROW_COUNT	3
 #define ENTERPRISE_COL_COUNT	3
 
@@ -79,69 +77,14 @@ static struct tegra_kbc_platform_data enterprise_kbc_platform_data = {
 	.keymap_data = &keymap_data,
 	.wake_cnt = 4,
 	.wake_cfg = &enterprise_wake_cfg[0],
+	.wakeup_key = KEY_POWER,
 #ifdef CONFIG_ANDROID
 	.disable_ev_rep = true,
 #endif
 };
-#define GPIO_KEY(_id, _gpio, _iswake,_active_low)       \
-	    {                   \
-		        .code = _id,            \
-		        .gpio = _gpio,       \
-		        .active_low = _active_low,      \
-		        .desc = #_gpio,         \
-		        .type = EV_KEY,         \
-		        .wakeup = _iswake,      \
-		        .debounce_interval = 0,    \
-		    }
-
-
-
-
-
-static struct gpio_keys_button m470_keys[] = {
-	[0] = GPIO_KEY(KEY_VOLUMEUP, TEGRA_GPIO_PQ1, 0, 1),
-	[1] = GPIO_KEY(KEY_VOLUMEDOWN, TEGRA_GPIO_PQ2, 0, 1),
-	[2] = GPIO_KEY(KEY_POWER, TEGRA_GPIO_PV0, 1, 1),
-};
-#define PMC_WAKE_STATUS		0x14
-#define PMC_WAKE2_STATUS	0x168
-static int m470_wakeup_key(void)
-{
-    u64 status =
-	readl(IO_ADDRESS(TEGRA_PMC_BASE) + PMC_WAKE_STATUS);
-	printk(" pmc_wake2_status is %llu \n",status);
-		    
-    if(status & (1 << (24)))
-       return KEY_POWER;
-    else
-       return KEY_RESERVED;
-	//return ((status & (1 << 35)) ? KEY_POWER : KEY_RESERVED);
-					
-     //return KEY_POWER;
-}
-		
-					
-static struct gpio_keys_platform_data m470_keys_pdata = {
-        	.buttons	= m470_keys,
-     		.nbuttons	= ARRAY_SIZE(m470_keys),
-		.wakeup_key = m470_wakeup_key,
-  	};
-			
-static struct platform_device m470_keys_device = {
-	        .name   = "gpio-keys",
-        	.id     = 0,
-      		.dev    = {
- 				.platform_data  = &m470_keys_pdata,
-			},
-};
-					
-					
-					
-					
 
 int __init enterprise_kbc_init(void)
 {
- 
 	struct tegra_kbc_platform_data *data = &enterprise_kbc_platform_data;
 	int i;
 	tegra_kbc_device.dev.platform_data = &enterprise_kbc_platform_data;
@@ -150,36 +93,15 @@ int __init enterprise_kbc_init(void)
 	BUG_ON((KBC_MAX_ROW + KBC_MAX_COL) > KBC_MAX_GPIO);
 	for (i = 0; i < ENTERPRISE_ROW_COUNT; i++) {
 		data->pin_cfg[i].num = i;
-		data->pin_cfg[i].is_row = true;
-		data->pin_cfg[i].en = true;
+		data->pin_cfg[i].type = PIN_CFG_ROW;
 	}
 	for (i = 0; i < ENTERPRISE_COL_COUNT; i++) {
 		data->pin_cfg[i + KBC_PIN_GPIO_16].num = i;
-		data->pin_cfg[i + KBC_PIN_GPIO_16].en = true;
+		data->pin_cfg[i + KBC_PIN_GPIO_16].type = PIN_CFG_COL;
 	}
 
 	platform_device_register(&tegra_kbc_device);
 	pr_info("Registering successful tegra-kbc\n");
-
 	return 0;
 }
 
-int __init enterprise_keys_init(void)
-{
-	int i;
-
-	pr_info("Registering gpio keys\n");
-	
-			
-	/* Enable gpio mode for other pins */
-	for (i = 0; i < m470_keys_pdata.nbuttons; i++)
-	{
-	  tegra_gpio_enable(m470_keys_pdata.buttons[i].gpio);
-	}
-		        
-	platform_device_register(&m470_keys_device);
-	pr_info("%s() -- > %d\n", __func__, __LINE__);
-	/* Register on-key through pmu interrupt */
-	//platform_device_register(&cardhu_int_keys_device);
-	return 0;
-}
