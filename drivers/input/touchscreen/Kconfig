@@ -901,4 +901,8 @@ config TOUCHSCREEN_MAXIM_STI
           To compile this driver as a module, choose M here: the
           module will be called maxim_sti.
 
+config TOUCHSCREEN_FT5X06
+	tristate "FT5X06 I2C Touchscreen"
+	depends on I2C
+
 endif

@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-enterprise.c
  *
- * Copyright (c) 2011-2013, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,17 +38,14 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/memblock.h>
 #include <linux/rfkill-gpio.h>
-#include <linux/mfd/tlv320aic3262-registers.h>
-#include <linux/mfd/tlv320aic3xxx-core.h>
+//#include <linux/mfd/tlv320aic3262-registers.h>
+//#include <linux/mfd/tlv320aic3262-core.h>
 
 #include <linux/nfc/pn544.h>
-#include <linux/of_platform.h>
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
-
 #include <sound/max98088.h>
-
-#include <asm/hardware/gic.h>
+#include <linux/nfc/bcm2079x.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -57,19 +54,19 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/io_dpd.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
 #include <mach/i2s.h>
 #include <mach/tegra_asoc_pdata.h>
+#include <mach/thermal.h>
 #include <mach/tegra-bb-power.h>
-#include <mach/gpio-tegra.h>
 #include <mach/tegra_fiq_debugger.h>
 
-#include <asm/mach-types.h>
-#include <asm/hardware/gic.h>
-#include <asm/mach/arch.h>
-
+#include <linux/mfd/tlv320aic3256-registers.h>
+#include <linux/mfd/tlv320aic3xxx-core.h>
+#include <sound/tlv320aic325x.h>
 #include "board.h"
-#include "board-common.h"
 #include "clock.h"
 #include "board-enterprise.h"
 #include "baseband-xmm-power.h"
@@ -77,148 +74,190 @@
 #include "gpio-names.h"
 #include "fuse.h"
 #include "pm.h"
-#include "common.h"
+extern unsigned int his_hw_ver;
+extern unsigned int his_board_version;
 
-/* wl128x BT, FM, GPS connectivity chip */
-struct ti_st_plat_data enterprise_wilink_pdata = {
-       .nshutdown_gpio = TEGRA_GPIO_PE6,
-       .dev_name = BLUETOOTH_UART_DEV_NAME,
-       .flow_cntrl = 1,
-       .baud_rate = 3000000,
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+#include <linux/i2c/ft5x06_ts.h>
+#endif
+
+#ifdef CONFIG_TEGRA_THERMAL_THROTTLE
+static struct throttle_table throttle_freqs_tj[] = {
+	      /*    CPU,    CBUS,    SCLK,     EMC */
+	      { 1000000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  760000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  760000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  437000,  NO_CAP,  NO_CAP },
+	      {  620000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  250000,  375000 },
+	      {  475000,  352000,  250000,  375000 },
+	      {  475000,  247000,  204000,  375000 },
+	      {  475000,  247000,  204000,  204000 },
+	      {  475000,  247000,  204000,  204000 },
+	{ CPU_THROT_LOW,  247000,  204000,  102000 },
 };
+#endif
 
-static struct platform_device wl128x_device = {
-       .name           = "kim",
-       .id             = -1,
-       .dev.platform_data = &enterprise_wilink_pdata,
+#ifdef CONFIG_TEGRA_SKIN_THROTTLE
+static struct throttle_table throttle_freqs_tskin[] = {
+	      /*    CPU,    CBUS,    SCLK,     EMC */
+	      { 1000000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  760000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  760000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  NO_CAP,  NO_CAP,  NO_CAP },
+	      {  620000,  437000,  NO_CAP,  NO_CAP },
+	      {  620000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  NO_CAP,  NO_CAP },
+	      {  475000,  352000,  250000,  375000 },
+	      {  475000,  352000,  250000,  375000 },
+	      {  475000,  247000,  204000,  375000 },
+	      {  475000,	247000,  204000,  375000 },
+	      {  475000,	247000,  204000,  375000 },
+	      {  475000,	247000,  204000,  375000 },
+
 };
+#endif
 
-static struct platform_device btwilink_device = {
-       .name = "btwilink",
-       .id = -1,
-};
-
-static noinline void __init enterprise_bt_st(void)
-{
-       pr_info("enterprise_bt_st");
-
-       platform_device_register(&wl128x_device);
-       platform_device_register(&btwilink_device);
-}
-
-#ifdef CONFIG_BT_BLUESLEEP
-static struct rfkill_gpio_platform_data enterprise_bt_rfkill_pdata[] = {
+static struct balanced_throttle throttle_list[] = {
+#ifdef CONFIG_TEGRA_THERMAL_THROTTLE
 	{
-		.name           = "bt_rfkill",
-		.shutdown_gpio  = TEGRA_GPIO_PE6,
-		.reset_gpio     = TEGRA_GPIO_INVALID,
-		.type           = RFKILL_TYPE_BLUETOOTH,
+		.id = BALANCED_THROTTLE_ID_TJ,
+		.throt_tab_size = ARRAY_SIZE(throttle_freqs_tj),
+		.throt_tab = throttle_freqs_tj,
 	},
+#endif
+#ifdef CONFIG_TEGRA_SKIN_THROTTLE
+	{
+		.id = BALANCED_THROTTLE_ID_SKIN,
+		.throt_tab_size = ARRAY_SIZE(throttle_freqs_tskin),
+		.throt_tab = throttle_freqs_tskin,
+	},
+#endif
 };
 
-static struct platform_device enterprise_bt_rfkill_device = {
-	.name = "rfkill_gpio",
-	.id		= -1,
-	.dev = {
-		.platform_data = &enterprise_bt_rfkill_pdata,
-	},
-};
-static struct resource enterprise_ti_bluesleep_resources[] = {
-	[0] = {
-		.name = "gpio_host_wake",
-			.start  = TEGRA_GPIO_PS2,
-			.end    = TEGRA_GPIO_PS2,
-			.flags  = IORESOURCE_IO,
-	},
-	[1] = {
-		.name = "host_wake",
-			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-};
-static struct resource enterprise_brcm_bluesleep_resources[] = {
-	[0] = {
-		.name = "gpio_host_wake",
-			.start  = TEGRA_GPIO_PS2,
-			.end    = TEGRA_GPIO_PS2,
-			.flags  = IORESOURCE_IO,
-	},
-	[1] = {
-		.name = "gpio_ext_wake",
-			.start  = TEGRA_GPIO_PE7,
-			.end    = TEGRA_GPIO_PE7,
-			.flags  = IORESOURCE_IO,
-	},
-	[2] = {
-		.name = "host_wake",
-			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
+/* All units are in millicelsius */
+static struct tegra_thermal_data thermal_data = {
+	.shutdown_device_id = THERMAL_DEVICE_ID_NCT_EXT,
+	.temp_shutdown = 90000,
+#if defined(CONFIG_TEGRA_EDP_LIMITS) || defined(CONFIG_TEGRA_THERMAL_THROTTLE)
+	.throttle_edp_device_id = THERMAL_DEVICE_ID_NCT_EXT,
+#endif
+#ifdef CONFIG_TEGRA_EDP_LIMITS
+	.edp_offset = TDIODE_OFFSET,  /* edp based on tdiode */
+	.hysteresis_edp = 3000,
+#endif
+#ifdef CONFIG_TEGRA_THERMAL_THROTTLE
+	.temp_throttle = 85000,
+	.tc1 = 0,
+	.tc2 = 1,
+	.passive_delay = 2000,
+#endif
+#ifdef CONFIG_TEGRA_SKIN_THROTTLE
+	.skin_device_id = THERMAL_DEVICE_ID_SKIN,
+	.temp_throttle_skin = 43000,
+        .tc1_skin = 0,
+        .tc2_skin = 1,
+        .passive_delay_skin = 5000,
+ 
+        .skin_temp_offset = 3218, /* -2685,  476, 6333,*/
+        .skin_period = 1100, /*5500, */
+        .skin_devs_size = 2,
+        .skin_devs = {
+   /*			   {
+                        // jprimero: also need to add THERMAL_DEVICE_ID_BATT value to
+                        // arch/arm/mach-tegra/include/mach/thermal.h
+                     
+                        "batt",
+                        THERMAL_DEVICE_ID_BATT,
+                        {
+                                0, 1, 2, 1,
+                                2, 1, 1, 0,
+                                0, 0, 0, -1,
+                                0, -2, 0, -2,
+                                -1, -2, 1, -1
+                        }
+                },
+*/
+                {
+                        "nct_ext",
+                        THERMAL_DEVICE_ID_NCT_EXT,
+                        {
+				3, 0, 1, 1,
+				1, 0, 0, 2,
+				0, 1, -1, -1,
+				0, 0, 0, -1,
+				-1, 0, -1, -4
+
+                        }
+                },
+                {
+                        "nct_int",
+                        THERMAL_DEVICE_ID_NCT_INT,
+                        {
+				9, 1, 8, 7,
+				9, -1, 4, -8,
+				5, 7, 9, -5,
+				-2, -3, 6, 7,
+				5, 6, -4, 21
+
+
+
+                        }
+                },
+        },
+	
+#endif
 };
 
-static struct platform_device enterprise_ti_bluesleep_device = {
-	.name           = "bluesleep",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(enterprise_ti_bluesleep_resources),
-	.resource       = enterprise_ti_bluesleep_resources,
-};
 
-static struct platform_device enterprise_brcm_bluesleep_device = {
-	.name           = "bluesleep",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(enterprise_brcm_bluesleep_resources),
-	.resource       = enterprise_brcm_bluesleep_resources,
-};
-static void __init enterprise_bt_rfkill(void)
-{
-	platform_device_register(&enterprise_bt_rfkill_device);
-	return;
-}
-static void __init enterprise_setup_bluesleep(void)
-{
-	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX) {
-		enterprise_ti_bluesleep_resources[1].start =
-		enterprise_ti_bluesleep_resources[1].end =
-			gpio_to_irq(TEGRA_GPIO_PS2);
-		platform_device_register(&enterprise_ti_bluesleep_device);
-	}
-	else {
-		enterprise_brcm_bluesleep_resources[2].start =
-		enterprise_brcm_bluesleep_resources[2].end =
-			gpio_to_irq(TEGRA_GPIO_PS2);
-		platform_device_register(&enterprise_brcm_bluesleep_device);
-	}
-	return;
-}
-#elif defined CONFIG_BLUEDROID_PM
-static struct resource enterprise_bluedroid_pm_resources[] = {
+static struct resource enterprise_bluedroid_pm_resources1[] = {
 	[0] = {
 		.name   = "shutdown_gpio",
-		.start  = TEGRA_GPIO_PE6,
-		.end    = TEGRA_GPIO_PE6,
+		.start  = TEGRA_GPIO_BT_REG_ON,
+		.end    = TEGRA_GPIO_BT_REG_ON,
 		.flags  = IORESOURCE_IO,
 	},
 	[1] = {
-		.name = "host_wake",
-		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-	[2] = {
-		.name = "gpio_ext_wake",
-		.start  = TEGRA_GPIO_PE7,
-		.end    = TEGRA_GPIO_PE7,
-		.flags  = IORESOURCE_IO,
-	},
-	[3] = {
-		.name = "gpio_host_wake",
-		.start  = TEGRA_GPIO_PS2,
-		.end    = TEGRA_GPIO_PS2,
+		.name   = "reset_gpio",
+		.start  = TEGRA_GPIO_PD4,
+		.end    = TEGRA_GPIO_PD4,
 		.flags  = IORESOURCE_IO,
 	},
 };
 
-static struct platform_device enterprise_bluedroid_pm_device = {
+static struct platform_device enterprise_bluedroid_pm_device1 = {
 	.name = "bluedroid_pm",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(enterprise_bluedroid_pm_resources),
-	.resource       = enterprise_bluedroid_pm_resources,
+	.num_resources  = ARRAY_SIZE(enterprise_bluedroid_pm_resources1),
+	.resource       = enterprise_bluedroid_pm_resources1,
+};
+
+static struct resource enterprise_bluedroid_pm_resources2[] = {
+	[0] = {
+		.name   = "shutdown_gpio",
+		.start  = TEGRA_GPIO_BT_REG_ON,
+		.end    = TEGRA_GPIO_BT_REG_ON,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.name   = "reset_gpio",
+		.start  = TEGRA_GPIO_PW2,
+		.end    = TEGRA_GPIO_PW2,
+		.flags  = IORESOURCE_IO,
+	},
+};
+
+static struct platform_device enterprise_bluedroid_pm_device2 = {
+	.name = "bluedroid_pm",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(enterprise_bluedroid_pm_resources2),
+	.resource       = enterprise_bluedroid_pm_resources2,
 };
 
 static void __init enterprise_bluedroid_pm(void)
@@ -226,23 +265,71 @@ static void __init enterprise_bluedroid_pm(void)
 	struct board_info board_info;
 	tegra_get_board_info(&board_info);
 
-	enterprise_bluedroid_pm_resources[1].start =
-		enterprise_bluedroid_pm_resources[1].end =
-				gpio_to_irq(TEGRA_GPIO_PS2);
-	if (board_info.board_id == BOARD_E1239)
-		enterprise_bluedroid_pm_resources[1].start =
-			enterprise_bluedroid_pm_resources[1].end =
-							TEGRA_GPIO_PF4;
-	platform_device_register(&enterprise_bluedroid_pm_device);
+    if(his_board_version==1){
+        	printk("sunzizhi add hw_ver is %d\n",his_board_version);
+        	platform_device_register(&enterprise_bluedroid_pm_device1);
+	}
+    else
+	{
+            printk("sunzizhi add hw_ver is %d\n",his_board_version);
+            platform_device_register(&enterprise_bluedroid_pm_device2);
+	}
 	return;
 }
-#endif
+
+
+
+static struct resource enterprise_bluesleep_resources[] = {
+	[0] = {
+		.name = "gpio_host_wake",
+			.start  = TEGRA_GPIO_BT_HOST_WAKE,
+			.end    = TEGRA_GPIO_BT_HOST_WAKE,
+			.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.name = "gpio_ext_wake",
+			.start  = TEGRA_GPIO_HOST_BT_WAKE,
+			.end    = TEGRA_GPIO_HOST_BT_WAKE,
+			.flags  = IORESOURCE_IO,
+	},
+	[2] = {
+		.name = "host_wake",
+			.start  = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_BT_HOST_WAKE),
+			.end    = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_BT_HOST_WAKE),
+			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+//			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct platform_device enterprise_bluesleep_device = {
+	.name           = "bluesleep",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(enterprise_bluesleep_resources),
+	.resource       = enterprise_bluesleep_resources,
+};
+extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
+
+static void __init enterprise_setup_bluesleep(void)
+{
+	platform_device_register(&enterprise_bluesleep_device);
+	bluesleep_setup_uart_port(&tegra_uartc_device);
+	tegra_gpio_enable(TEGRA_GPIO_BT_HOST_WAKE);
+	tegra_gpio_enable(TEGRA_GPIO_HOST_BT_WAKE);
+	return;
+}
+
+static void __init enterprise_gps_init(void)
+{
+	tegra_gpio_enable(TEGRA_GPIO_GPS_PWN);
+	tegra_gpio_enable(TEGRA_GPIO_GPS_RST_N);
+}
+
 static __initdata struct tegra_clk_init_table enterprise_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "pll_m",	NULL,		0,		false},
 	{ "hda",	"pll_p",	108000000,	false},
 	{ "hda2codec_2x","pll_p",	48000000,	false},
-	{ "pwm",	"pll_p",	3187500,	false},
+	{ "pwm",	"pll_p",	40800000,	false},
 	{ "blink",	"clk_32k",	32768,		true},
 	{ "i2s0",	"pll_a_out0",	0,		false},
 	{ "i2s1",	"pll_a_out0",	0,		false},
@@ -257,7 +344,7 @@ static __initdata struct tegra_clk_init_table enterprise_clk_init_table[] = {
 	{ "audio2",	"i2s2_sync",	0,		false},
 	{ "audio3",	"i2s3_sync",	0,		false},
 	{ "audio4",	"i2s4_sync",	0,		false},
-	{ "vi",		"pll_p",	0,		false},
+	{ "vi",		"pll_p",	24000000,		false},
 	{ "vi_sensor",	"pll_p",	0,		false},
 	{ "i2c5",	"pll_p",	3200000,	false},
 	{ NULL,		NULL,		0,		0},
@@ -274,50 +361,50 @@ static __initdata struct tegra_clk_init_table enterprise_clk_i2s4_table[] = {
 	{ "i2s4",	"pll_a_out0",	0,		false},
 	{ NULL,		NULL,		0,		0},
 };
-
-static struct aic3262_gpio_setup aic3262_gpio[] = {
+#if 1
+static struct aic3256_gpio_setup aic3256_gpio[] = {
 	/* GPIO 1*/
 	{
 		.used		= 1,
 		.in		= 0,
-		.value		= AIC3262_GPIO1_FUNC_INT1_OUTPUT ,
+		.value		= AIC3256_GPIO_MFP5_FUNC_OUTPUT ,
 	},
 	/* GPIO 2*/
 	{
-		.used		= 1,
+		.used		= 0,
 		.in		= 0,
-		.value		= AIC3262_GPIO2_FUNC_ADC_MOD_CLK_OUTPUT,
 	},
 	/* GPIO 1 */
 	{
 		.used		= 0,
 	},
 	{// GPI2
-		.used		= 1,
+		.used		= 0,
 		.in		= 1,
-		.in_reg         = AIC3262_DMIC_INPUT_CNTL,
-		.in_reg_bitmask	= AIC3262_DMIC_CONFIGURE_MASK,
-		.in_reg_shift	= AIC3262_DMIC_CONFIGURE_SHIFT,
-		.value		= AIC3262_DMIC_GPI2_LEFT_GPI2_RIGHT,
 	},
 	{// GPO1
 		.used		= 0,
-		.value		= AIC3262_GPO1_FUNC_DISABLED,
 	},
 };
+#endif
 
-static struct aic3xxx_pdata aic3262_codec_pdata = {
-	.gpio_irq	= 1,
-	.gpio_reset	= TEGRA_GPIO_CODEC_RST,
-	.gpio		= aic3262_gpio,
-	.naudint_irq	= TEGRA_GPIO_HP_DET,
-	.irq_base	= AIC3262_CODEC_IRQ_BASE,
+
+static struct bcm2079x_platform_data nfc_pdata = {
+	.irq_gpio = TEGRA_GPIO_NFC_IRQ,
+	.en_gpio = TEGRA_GPIO_NFC_PWN,
+	.wake_gpio = TEGRA_GPIO_NFC_WAKE,
+};
+
+static struct i2c_board_info __initdata enterprise_bcm2079x_info = {
+	I2C_BOARD_INFO("bcm2079x-i2c", 0x77),
+	.platform_data = &nfc_pdata,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_NFC_IRQ),
 };
 
 static struct tegra_i2c_platform_data enterprise_i2c1_platform_data = {
 	.adapter_nr	= 0,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 100000, 0 },
+	.bus_clk_rate	= {400000, 0 },
 	.scl_gpio		= {TEGRA_GPIO_PC4, 0},
 	.sda_gpio		= {TEGRA_GPIO_PC5, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -327,7 +414,7 @@ static struct tegra_i2c_platform_data enterprise_i2c2_platform_data = {
 	.adapter_nr	= 1,
 	.bus_count	= 1,
 	.bus_clk_rate	= { 400000, 0 },
-	.is_clkon_always = true,
+	//.is_clkon_always = true,//opposite ops refer to i2c-tegra es
 	.scl_gpio		= {TEGRA_GPIO_PT5, 0},
 	.sda_gpio		= {TEGRA_GPIO_PT6, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -336,7 +423,7 @@ static struct tegra_i2c_platform_data enterprise_i2c2_platform_data = {
 static struct tegra_i2c_platform_data enterprise_i2c3_platform_data = {
 	.adapter_nr	= 2,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 271000, 0 },
+    .bus_clk_rate	= {100000, 0 },
 	.scl_gpio		= {TEGRA_GPIO_PBB1, 0},
 	.sda_gpio		= {TEGRA_GPIO_PBB2, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -454,30 +541,30 @@ static struct max98088_pdata enterprise_max98088_pdata = {
 	.receiver_mode = 0,	/* 0 = amplifier, 1 = line output */
 };
 
-static struct pn544_i2c_platform_data nfc_pdata = {
-		.irq_gpio = TEGRA_GPIO_PS4,
-		.ven_gpio = TEGRA_GPIO_PM6,
-		.firm_gpio = 0,
+static struct aic3xxx_pdata aic3256_codec_pdata = {
+	/* debounce time */
+	.gpio_irq	= 1,
+	.gpio_reset	= TEGRA_GPIO_CODEC_RST,
+	.gpio		= aic3256_gpio,
+	.naudint_irq	= TEGRA_GPIO_CDC_IRQ_N,
+	.jackint_irq  = TEGRA_GPIO_M470_HP_DET,
+	.keyint_irq = TEGRA_GPIO_M470_KEY_DET,
+	.irq_base	= AIC3256_CODEC_IRQ_BASE,
+	.debounce_time_ms = 512,
 };
 
 
 static struct i2c_board_info __initdata max98088_board_info = {
 	I2C_BOARD_INFO("max98088", 0x10),
 	.platform_data = &enterprise_max98088_pdata,
-	.irq = TEGRA_GPIO_HP_DET,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET),
 };
 
-static struct i2c_board_info __initdata enterprise_codec_aic326x_info = {
-	I2C_BOARD_INFO("tlv320aic3262", 0x18),
-	.platform_data = &aic3262_codec_pdata,
-	.irq = TEGRA_GPIO_HP_DET,
+static struct i2c_board_info __initdata enterprise_codec_aic325x_info = {
+	I2C_BOARD_INFO("tlv320aic325x", 0x18),
+	.platform_data = &aic3256_codec_pdata,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ_N),
 };
-
-static struct i2c_board_info __initdata nfc_board_info = {
-	I2C_BOARD_INFO("pn544", 0x28),
-	.platform_data = &nfc_pdata,
-};
-
 static void enterprise_i2c_init(void)
 {
 	tegra_i2c_device1.dev.platform_data = &enterprise_i2c1_platform_data;
@@ -493,9 +580,9 @@ static void enterprise_i2c_init(void)
 	platform_device_register(&tegra_i2c_device1);
 
 	i2c_register_board_info(0, &max98088_board_info, 1);
-	i2c_register_board_info(0, &enterprise_codec_aic326x_info, 1);
-	nfc_board_info.irq = gpio_to_irq(TEGRA_GPIO_PS4);
-	i2c_register_board_info(0, &nfc_board_info, 1);
+	enterprise_codec_aic325x_info.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ_N);
+	i2c_register_board_info(0, &enterprise_codec_aic325x_info, 1);
+	i2c_register_board_info(0, &enterprise_bcm2079x_info, 1);
 }
 
 static struct platform_device *enterprise_uart_devices[] __initdata = {
@@ -518,15 +605,34 @@ static struct tegra_uart_platform_data enterprise_loopback_uart_pdata;
 
 static void __init uart_debug_init(void)
 {
-	int debug_port_id;
+	unsigned long rate;
+	struct clk *c;
 
 	/* UARTD is the debug port. */
 	pr_info("Selecting UARTD as the debug console\n");
-	debug_port_id = uart_console_debug_init(3);
-	if (debug_port_id < 0)
-		return;
+	enterprise_uart_devices[3] = &debug_uartd_device;
+	debug_uart_port_base = ((struct plat_serial8250_port *)(
+			debug_uartd_device.dev.platform_data))->mapbase;
+	debug_uart_clk = clk_get_sys("serial8250.0", "uartd");
 
-	enterprise_uart_devices[debug_port_id] = uart_console_debug_device;
+	/* Clock enable for the debug channel */
+	if (!IS_ERR_OR_NULL(debug_uart_clk)) {
+		rate = ((struct plat_serial8250_port *)(
+			debug_uartd_device.dev.platform_data))->uartclk;
+		pr_info("The debug console clock name is %s\n",
+						debug_uart_clk->name);
+		c = tegra_get_clock_by_name("pll_p");
+		if (IS_ERR_OR_NULL(c))
+			pr_err("Not getting the parent clock pll_p\n");
+		else
+			clk_set_parent(debug_uart_clk, c);
+
+		clk_enable(debug_uart_clk);
+		clk_set_rate(debug_uart_clk, rate);
+	} else {
+		pr_err("Not getting the clock %s for debug console\n",
+				debug_uart_clk->name);
+	}
 }
 
 static void __init enterprise_uart_init(void)
@@ -564,6 +670,8 @@ static void __init enterprise_uart_init(void)
 	platform_add_devices(enterprise_uart_devices,
 				ARRAY_SIZE(enterprise_uart_devices));
 }
+
+
 /* add vibrator for enterprise */
 static struct platform_device vibrator_device = {
 	.name = "tegra-vibrator",
@@ -574,6 +682,7 @@ static noinline void __init enterprise_vibrator_init(void)
 {
 	platform_device_register(&vibrator_device);
 }
+
 
 
 static struct resource tegra_rtc_resources[] = {
@@ -596,88 +705,30 @@ static struct platform_device tegra_rtc_device = {
 	.num_resources = ARRAY_SIZE(tegra_rtc_resources),
 };
 
-static struct tegra_asoc_platform_data enterprise_audio_pdata = {
-	.gpio_spkr_en		= -1,
-	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
-	.gpio_hp_mute		= -1,
-	.gpio_int_mic_en	= -1,
-	.gpio_ext_mic_en	= -1,
-	.debounce_time_hp	= -1,
-	/*defaults for Enterprise board*/
-	.i2s_param[HIFI_CODEC]	= {
-		.audio_port_id	= 0,
-		.is_i2s_master	= 0,
-		.i2s_mode	= TEGRA_DAIFMT_I2S,
-		.sample_size	= 16,
-		.channels	    = 2,
-	},
-	.i2s_param[BASEBAND]	= {
-		.audio_port_id	= 2,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-		.sample_size	= 16,
-		.rate		= 8000,
-		.channels	= 1,
-		.bit_clk    = 2048000,
-	},
-	.i2s_param[BT_SCO]	= {
-		.audio_port_id	= 3,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-		.sample_size	= 16,
-	},
+static struct platform_device tegra_camera = {
+	.name = "tegra_camera",
+	.id = -1,
 };
 
-static struct platform_device enterprise_audio_device = {
-	.name	= "tegra-snd-max98088",
-	.id	= 0,
-	.dev	= {
-		.platform_data  = &enterprise_audio_pdata,
-	},
-};
-
-static struct tegra_asoc_platform_data enterprise_audio_aic326x_pdata = {
-	.gpio_spkr_en		= -1,
-	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
-	.gpio_hp_mute		= -1,
-	.gpio_int_mic_en	= -1,
-	.gpio_ext_mic_en	= -1,
-	/*defaults for Verbier-Enterprise (E1197) board with TI AIC326X codec*/
-	.i2s_param[HIFI_CODEC]	= {
-		.audio_port_id	= 0,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_I2S,
-		.sample_size	= 16,
-	},
-	.i2s_param[BASEBAND]	= {
-		.audio_port_id	= 2,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-		.sample_size	= 16,
-		.rate		= 8000,
-		.channels	= 1,
-	},
-	.i2s_param[BT_SCO]	= {
-		.sample_size	= 16,
-		.audio_port_id	= 3,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-	},
-	.i2s_param[VOICE_CODEC]	= {
+static struct tegra_asoc_platform_data enterprise_audio_aic325x_pdata = {
+	.gpio_spkr_en = -1,
+	.gpio_hp_det = TEGRA_GPIO_CDC_IRQ_N,
+	.gpio_hp_mute = -1,
+	.gpio_int_mic_en = -1,
+	.gpio_ext_mic_en = -1,
+	.debounce_time_hp = 200,
+	.i2s_param[HIFI_CODEC]  = {
 		.audio_port_id	= 1,
 		.is_i2s_master	= 1,
 		.i2s_mode	= TEGRA_DAIFMT_I2S,
 		.sample_size	= 16,
-		.rate		= 8000,
-		.channels	= 2,
 	},
 };
-
-static struct platform_device enterprise_audio_aic326x_device = {
-	.name	= "tegra-snd-aic326x",
+static struct platform_device enterprise_audio_aic325x_device = {
+	.name	= "tegra-snd-aic325x",
 	.id	= 0,
 	.dev	= {
-		.platform_data  = &enterprise_audio_aic326x_pdata,
+		.platform_data  = &enterprise_audio_aic325x_pdata,
 	},
 };
 
@@ -685,76 +736,94 @@ static struct platform_device *enterprise_devices[] __initdata = {
 	&tegra_pmu_device,
 	&tegra_rtc_device,
 	&tegra_udc_device,
+#if defined(CONFIG_INPUT_KEYRESET)
+	&tegra_keyreset_device,
+#endif
+#if defined(CONFIG_TEGRA_IOVMM_SMMU) || defined(CONFIG_TEGRA_IOMMU_SMMU)
+	&tegra_smmu_device,
+#endif
 	&tegra_wdt0_device,
+	&tegra_wdt1_device,
+	&tegra_wdt2_device,
 #if defined(CONFIG_TEGRA_AVP)
 	&tegra_avp_device,
 #endif
+	&tegra_camera,
 	&tegra_spi_device4,
 	&tegra_hda_device,
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_SE)
 	&tegra_se_device,
 #endif
+	&tegra_ahub_device,
+	&tegra_dam_device0,
+	&tegra_dam_device1,
+	&tegra_dam_device2,
+	&tegra_i2s_device0,
+	&tegra_i2s_device1,
+	&tegra_i2s_device3,
+	&tegra_spdif_device,
+	&spdif_dit_device,
+	&bluetooth_dit_device,
+	&baseband_dit_device,
+	&tegra_pcm_device,
+	&enterprise_audio_aic325x_device,
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_AES)
 	&tegra_aes_device,
 #endif
 };
 
-#define MXT_CFG_NAME            "Android_Enterprise_2012-01-31.cfg"
-static u8 read_chg(void)
-{
-	return gpio_get_value(TEGRA_GPIO_PH6);
-}
-
-static struct mxt_platform_data atmel_mxt_info = {
-	.irqflags       = IRQF_TRIGGER_FALLING,
-	.read_chg       = &read_chg,
-	.mxt_cfg_name	= MXT_CFG_NAME,
-};
-
-static struct i2c_board_info __initdata atmel_i2c_info[] = {
+#define MXT_CONFIG_CRC 0x62F903
+/*
+ * Config converted from memory-mapped cfg-file with
+ * following version information:
+ *
+ *
+ *
+ *      FAMILY_ID=128
+ *      VARIANT=1
+ *      VERSION=32
+ *      BUILD=170
+ *      VENDOR_ID=255
+ *      PRODUCT_ID=TBD
+ *      CHECKSUM=0xC189B6
+ *
+ *
+ */
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+	static struct ft5x06_platform_data ft_platform_data = {
+		.x_max = 800,
+		.y_max = 1280,
+	};
+	
+	
+	static const struct i2c_board_info ft5x06_i2c_touch_info[] = {
+		{
+			I2C_BOARD_INFO("ft5x06", 0x38),
+			.irq		= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PZ3),
+			.platform_data = &ft_platform_data,
+		},
+	};
+	
+	static int __init enterprise_ft5x06_touch_init(void)
 	{
-		I2C_BOARD_INFO("atmel_mxt_ts", MXT224_I2C_ADDR1),
-		.flags = I2C_CLIENT_WAKE,
-		.platform_data = &atmel_mxt_info,
+		tegra_gpio_enable(TEGRA_GPIO_PZ3);
+		tegra_gpio_enable(TEGRA_GPIO_TP_VDD_EN);
+		tegra_gpio_enable(TEGRA_GPIO_TS_WAKE);
+	
+		//gpio_request(TEGRA_GPIO_TS_WAKE, "tp_wake");
+		gpio_direction_output(TEGRA_GPIO_TS_WAKE, 1);
+		msleep(20);
+		
+		//gpio_request(TEGRA_GPIO_TP_VDD_EN, "tp_vdd_en");
+		gpio_direction_output(TEGRA_GPIO_TP_VDD_EN, 1);
+		
+		i2c_register_board_info(1, ft5x06_i2c_touch_info, 1);
+	
+		return 0;
 	}
-};
+	
+#endif
 
-static int __init enterprise_touch_init(void)
-{
-	int ret;
-	ret = gpio_request(TEGRA_GPIO_PH6, "atmel-irq");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_input(TEGRA_GPIO_PH6);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_PH6);
-		return ret;
-	}
-	ret = gpio_request(TEGRA_GPIO_PF5, "atmel-reset");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_output(TEGRA_GPIO_PF5, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_PF5);
-		return ret;
-	}
-	msleep(1);
-	gpio_set_value(TEGRA_GPIO_PF5, 1);
-	msleep(100);
-
-	atmel_i2c_info[0].irq = gpio_to_irq(TEGRA_GPIO_PH6);
-	i2c_register_board_info(1, atmel_i2c_info, 1);
-
-	return 0;
-}
 
 static void enterprise_usb_hsic_postsupend(void)
 {
@@ -821,7 +890,7 @@ static struct tegra_usb_platform_data tegra_ehci2_hsic_xmm_pdata = {
 static struct tegra_usb_platform_data tegra_udc_pdata = {
 	.port_otg = true,
 	.has_hostpc = true,
-	.id_det_type = TEGRA_USB_VIRTUAL_ID,
+	.builtin_host_disabled = false,
 	.phy_intf = TEGRA_USB_PHY_INTF_UTMI,
 	.op_mode = TEGRA_USB_OPMODE_DEVICE,
 	.u_data.dev = {
@@ -847,11 +916,12 @@ static struct tegra_usb_platform_data tegra_udc_pdata = {
 static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
 	.port_otg = true,
 	.has_hostpc = true,
-	.id_det_type = TEGRA_USB_VIRTUAL_ID,
+	.builtin_host_disabled = false,
 	.phy_intf = TEGRA_USB_PHY_INTF_UTMI,
 	.op_mode = TEGRA_USB_OPMODE_HOST,
 	.u_data.host = {
 		.vbus_gpio = -1,
+		.vbus_reg = "usb_vbus",
 		.hot_plug = true,
 		.remote_wakeup_supported = true,
 		.power_off_on_suspend = true,
@@ -874,23 +944,23 @@ static struct tegra_usb_otg_data tegra_otg_pdata = {
 	.ehci_pdata = &tegra_ehci1_utmi_pdata,
 };
 
-static struct platform_device *
-tegra_usb_hsic_host_register(struct platform_device *ehci_dev)
+struct platform_device *tegra_usb_hsic_host_register(void)
 {
 	struct platform_device *pdev;
 	int val;
 
-	pdev = platform_device_alloc(ehci_dev->name, ehci_dev->id);
+	pdev = platform_device_alloc(tegra_ehci2_device.name,
+		tegra_ehci2_device.id);
 	if (!pdev)
 		return NULL;
 
-	val = platform_device_add_resources(pdev, ehci_dev->resource,
-						ehci_dev->num_resources);
+	val = platform_device_add_resources(pdev, tegra_ehci2_device.resource,
+		tegra_ehci2_device.num_resources);
 	if (val)
 		goto error;
 
-	pdev->dev.dma_mask =  ehci_dev->dev.dma_mask;
-	pdev->dev.coherent_dma_mask = ehci_dev->dev.coherent_dma_mask;
+	pdev->dev.dma_mask =  tegra_ehci2_device.dev.dma_mask;
+	pdev->dev.coherent_dma_mask = tegra_ehci2_device.dev.coherent_dma_mask;
 
 	val = platform_device_add_data(pdev, &tegra_ehci2_hsic_xmm_pdata,
 			sizeof(struct tegra_usb_platform_data));
@@ -928,170 +998,32 @@ static void enterprise_usb_init(void)
 	platform_device_register(&tegra_otg_device);
 }
 
-static struct platform_device *enterprise_audio_devices[] __initdata = {
-	&tegra_ahub_device,
-	&tegra_dam_device0,
-	&tegra_dam_device1,
-	&tegra_dam_device2,
-	&tegra_i2s_device0,
-	&tegra_i2s_device1,
-	&tegra_i2s_device3,
-	&tegra_spdif_device,
-	&spdif_dit_device,
-	&bluetooth_dit_device,
-	&baseband_dit_device,
-	&tegra_pcm_device,
-	&enterprise_audio_device,
-	&enterprise_audio_aic326x_device,
-};
 
-static void enterprise_audio_init(void)
-{
-	struct board_info board_info;
 
-	tegra_get_board_info(&board_info);
 
-	if (board_info.board_id == BOARD_E1239) {
-		enterprise_audio_aic326x_pdata.i2s_param[BASEBAND].
-					audio_port_id = 4;
-		enterprise_audio_aic326x_pdata.i2s_param[BASEBAND].
-					i2s_mode	= TEGRA_DAIFMT_I2S;
-		enterprise_audio_aic326x_pdata.i2s_param[BASEBAND].
-					channels	= 2;
-		platform_device_register(&tegra_i2s_device4);
-	} else {
-		if (board_info.board_id == BOARD_E1197)
-			enterprise_audio_pdata.i2s_param[HIFI_CODEC].
-					audio_port_id = 1;
-		else if (board_info.fab == BOARD_FAB_A04) {
-			enterprise_audio_pdata.i2s_param[BASEBAND].
-					audio_port_id = 4;
-			platform_device_register(&tegra_i2s_device4);
-		} else {
-			enterprise_audio_pdata.i2s_param[BASEBAND].
-					audio_port_id = 2;
-			platform_device_register(&tegra_i2s_device2);
-		}
 
-	}
-	platform_add_devices(enterprise_audio_devices,
-		ARRAY_SIZE(enterprise_audio_devices));
-}
-
-static struct baseband_power_platform_data tegra_baseband_power_data = {
-	.baseband_type = BASEBAND_XMM,
-	.modem = {
-		.xmm = {
-			.bb_rst = XMM_GPIO_BB_RST,
-			.bb_on = XMM_GPIO_BB_ON,
-			.ipc_bb_wake = XMM_GPIO_IPC_BB_WAKE,
-			.ipc_ap_wake = XMM_GPIO_IPC_AP_WAKE,
-			.ipc_hsic_active = XMM_GPIO_IPC_HSIC_ACTIVE,
-			.ipc_hsic_sus_req = XMM_GPIO_IPC_HSIC_SUS_REQ,
-		},
-	},
-};
-
-static struct platform_device tegra_baseband_power_device = {
-	.name = "baseband_xmm_power",
-	.id = -1,
-	.dev = {
-		.platform_data = &tegra_baseband_power_data,
-	},
-};
-
-static struct platform_device tegra_baseband_power2_device = {
-	.name = "baseband_xmm_power2",
-	.id = -1,
-	.dev = {
-		.platform_data = &tegra_baseband_power_data,
-	},
-};
-
-#ifdef CONFIG_TEGRA_BB_M7400
-static union tegra_bb_gpio_id m7400_gpio_id = {
-	.m7400 = {
-		.pwr_status = GPIO_BB_RESET,
-		.pwr_on = GPIO_BB_PWRON,
-		.uart_awr = GPIO_BB_APACK,
-		.uart_cwr = GPIO_BB_CPACK,
-		.usb_awr = GPIO_BB_APACK2,
-		.usb_cwr = GPIO_BB_CPACK2,
-		.service = GPIO_BB_RSVD2,
-		.resout2 = GPIO_BB_RSVD1,
-	},
-};
-
-static struct tegra_bb_pdata m7400_pdata = {
-	.id = &m7400_gpio_id,
-	.device = &tegra_ehci2_device,
-	.ehci_register = tegra_usb_hsic_host_register,
-	.ehci_unregister = tegra_usb_hsic_host_unregister,
-	.bb_id = TEGRA_BB_M7400,
-};
-
-static struct platform_device tegra_baseband_m7400_device = {
-	.name = "tegra_baseband_power",
-	.id = -1,
-	.dev = {
-		.platform_data = &m7400_pdata,
+#ifdef CONFIG_BATTERY_BQ27x00
+//BQ27541 GasGauge
+static struct i2c_board_info   __initdata gen2_i2c_bq27541[] = {
+	{
+		I2C_BOARD_INFO("bq27541", 0x55),
 	},
 };
 #endif
 
-static void enterprise_baseband_init(void)
+/*
+** Enable pwm clock, heqi add
+*/
+static void __init tegra_enterprise_pwm_clk_init(void)
 {
-	struct board_info board_info;
+	struct clk *c;
+	int ret = 0;
 
-	int modem_id = tegra_get_modem_id();
+	c = tegra_get_clock_by_name(enterprise_clk_init_table[3].name);
 
-	tegra_get_board_info(&board_info);
-
-	switch (modem_id) {
-	case TEGRA_BB_PH450: /* PH450 ULPI */
-		enterprise_modem_init();
-		break;
-	case TEGRA_BB_XMM6260: /* XMM6260 HSIC */
-		/* baseband-power.ko will register ehci2 device */
-		tegra_ehci2_device.dev.platform_data =
-					&tegra_ehci2_hsic_xmm_pdata;
-		tegra_baseband_power_data.hsic_register =
-						&tegra_usb_hsic_host_register;
-		tegra_baseband_power_data.hsic_unregister =
-						&tegra_usb_hsic_host_unregister;
-		tegra_baseband_power_data.ehci_device =
-					&tegra_ehci2_device;
-		if ((board_info.board_id == BOARD_E1239) &&
-			(board_info.fab <= BOARD_FAB_A02)) {
-			tegra_baseband_power_data.modem.
-				xmm.ipc_hsic_active  = BB_GPIO_LCD_PWR2;
-			tegra_baseband_power_data.modem.
-				xmm.ipc_hsic_sus_req = BB_GPIO_LCD_PWR1;
-		}
-		platform_device_register(&tegra_baseband_power_device);
-		platform_device_register(&tegra_baseband_power2_device);
-		break;
-#ifdef CONFIG_TEGRA_BB_M7400
-	case TEGRA_BB_M7400: /* M7400 HSIC */
-		tegra_ehci2_hsic_xmm_pdata.u_data.host.power_off_on_suspend = 0;
-		tegra_ehci2_device.dev.platform_data
-			= &tegra_ehci2_hsic_xmm_pdata;
-		platform_device_register(&tegra_baseband_m7400_device);
-		break;
-#endif
-	}
-}
-static void enterprise_nfc_init(void)
-{
-	struct board_info bi;
-
-	/* Enable firmware GPIO PX7 for board E1205 */
-	tegra_get_board_info(&bi);
-	if (bi.board_id == BOARD_E1205 && bi.fab >= BOARD_FAB_A03) {
-		nfc_pdata.firm_gpio = TEGRA_GPIO_PX7;
-	} else if (bi.board_id == BOARD_E1239) {
-		nfc_pdata.firm_gpio = TEGRA_GPIO_PN6;
-	}
+	ret = clk_enable(c);
+	if (ret) 
+		pr_warning("Unable to enable clock %s: %d\n", enterprise_clk_init_table[3].name, ret);
 }
 
 static void __init tegra_enterprise_init(void)
@@ -1103,65 +1035,69 @@ static void __init tegra_enterprise_init(void)
 	else
 		tegra_clk_init_from_table(enterprise_clk_i2s2_table);
 
+	tegra_thermal_init(&thermal_data,
+				throttle_list,
+				ARRAY_SIZE(throttle_list));
 	tegra_clk_init_from_table(enterprise_clk_init_table);
-	tegra_enable_pinmux();
-	tegra_smmu_init();
+	//heqi add
+	tegra_enterprise_pwm_clk_init();
+	
 	tegra_soc_device_init("tegra_enterprise");
 	enterprise_pinmux_init();
 	enterprise_i2c_init();
 	enterprise_uart_init();
 	enterprise_usb_init();
-#ifdef CONFIG_BT_BLUESLEEP
-	if (board_info.board_id == BOARD_E1239)
-		enterprise_bt_rfkill_pdata[0].shutdown_gpio = TEGRA_GPIO_PF4;
-#endif
+//#ifdef CONFIG_BT_BLUESLEEP
+	//if (board_info.board_id == BOARD_E1239)
+	//	enterprise_bt_rfkill_pdata[0].reset_gpio = TEGRA_GPIO_PF4;
+//#endif
 	platform_add_devices(enterprise_devices, ARRAY_SIZE(enterprise_devices));
 	tegra_ram_console_debug_init();
+#ifdef CONFIG_BATTERY_BQ27x00
+        //ADD Battery GauGauge
+	i2c_register_board_info(1, gen2_i2c_bq27541,
+			ARRAY_SIZE(gen2_i2c_bq27541));
+#endif
 	enterprise_regulator_init();
 	tegra_io_dpd_init();
 	enterprise_sdhci_init();
 #ifdef CONFIG_TEGRA_EDP_LIMITS
 	enterprise_edp_init();
 #endif
-	enterprise_kbc_init();
-	enterprise_nfc_init();
-	enterprise_touch_init();
-	enterprise_audio_init();
-	enterprise_baseband_init();
-	enterprise_panel_init();
-	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX)
-		enterprise_bt_st();
-	else
-#ifdef CONFIG_BT_BLUESLEEP
-		enterprise_bt_rfkill();
-	enterprise_setup_bluesleep();
-#elif defined CONFIG_BLUEDROID_PM
-		enterprise_bluedroid_pm();
+	//enterprise_kbc_init();
+	enterprise_keys_init();
+	
+	//enterprise_nfc_init();
+	//enterprise_touch_init();
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+		enterprise_ft5x06_touch_init();
 #endif
+	//enterprise_audio_init();
+	//enterprise_baseband_init();
+	enterprise_panel_init();
+	//enterprise_bt_rfkill();
+	//enterprise_setup_bluesleep();
+	enterprise_bluedroid_pm();
+	enterprise_gps_init();
+	enterprise_setup_bluesleep();
+
 	enterprise_emc_init();
 	enterprise_sensors_init();
 	enterprise_suspend_init();
-	enterprise_bpc_mgmt_init();
+	//enterprise_bpc_mgmt_init();
 	tegra_release_bootloader_fb();
 	tegra_serial_debug_init(TEGRA_UARTD_BASE, INT_WDT_CPU, NULL, -1, -1);
 	enterprise_vibrator_init();
-	tegra_register_fuse();
-}
-
-static void __init tegra_enterprise_dt_init(void)
-{
-	tegra_enterprise_init();
-
-#ifdef CONFIG_USE_OF
-	of_platform_populate(NULL,
-		of_default_bus_match_table, NULL, NULL);
-#endif
 }
 
 static void __init tegra_enterprise_reserve(void)
 {
 #if defined(CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM)
+#if (defined(CONFIG_BOARD_M470) || defined(CONFIG_BOARD_M470BSD) || defined(CONFIG_BOARD_M470BSS))
+	tegra_reserve(0, SZ_8M, SZ_8M);
+#else
 	tegra_reserve(0, SZ_4M, SZ_8M);
+#endif
 #else
 	tegra_reserve(SZ_128M, SZ_4M, SZ_8M);
 #endif
@@ -1178,30 +1114,59 @@ static const char *tai_dt_board_compat[] = {
 	NULL
 };
 
-MACHINE_START(TEGRA_ENTERPRISE, "tegra_enterprise")
-	.atag_offset	= 0x100,
-	.soc		= &tegra_soc_desc,
+#if defined(CONFIG_BOARD_M470)
+MACHINE_START(M470, "m470")
+	.boot_params    = 0x80000100,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_enterprise_reserve,
-	.init_early	= tegra30_init_early,
+	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
-	.init_machine   = tegra_enterprise_dt_init,
-	.restart	= tegra_assert_system_reset,
+	.init_machine   = tegra_enterprise_init,
 	.dt_compat	= enterprise_dt_board_compat,
 MACHINE_END
-
-MACHINE_START(TAI, "tai")
-	.atag_offset	= 0x100,
-	.soc		= &tegra_soc_desc,
+#elif defined(CONFIG_BOARD_M470BSD)
+MACHINE_START(M470BSD, "m470bsd")
+	.boot_params    = 0x80000100,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_enterprise_reserve,
-	.init_early	= tegra30_init_early,
+	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
-	.init_machine   = tegra_enterprise_dt_init,
-	.restart	= tegra_assert_system_reset,
+	.init_machine   = tegra_enterprise_init,
+	.dt_compat	= enterprise_dt_board_compat,
+MACHINE_END
+#elif defined(CONFIG_BOARD_M470BSS)
+MACHINE_START(M470BSS, "m470bss")
+	.boot_params    = 0x80000100,
+	.map_io         = tegra_map_common_io,
+	.reserve        = tegra_enterprise_reserve,
+	.init_early	= tegra_init_early,
+	.init_irq       = tegra_init_irq,
+	.timer          = &tegra_timer,
+	.init_machine   = tegra_enterprise_init,
+	.dt_compat	= enterprise_dt_board_compat,
+MACHINE_END
+#else
+MACHINE_START(TEGRA_ENTERPRISE, "tegra_enterprise")
+	.boot_params    = 0x80000100,
+	.map_io         = tegra_map_common_io,
+	.reserve        = tegra_enterprise_reserve,
+	.init_early	= tegra_init_early,
+	.init_irq       = tegra_init_irq,
+	.timer          = &tegra_timer,
+	.init_machine   = tegra_enterprise_init,
+	.dt_compat	= enterprise_dt_board_compat,
+MACHINE_END
+#endif
+
+MACHINE_START(TAI, "tai")
+	.boot_params    = 0x80000100,
+	.map_io         = tegra_map_common_io,
+	.reserve        = tegra_enterprise_reserve,
+	.init_early	= tegra_init_early,
+	.init_irq       = tegra_init_irq,
+	.timer          = &tegra_timer,
+	.init_machine   = tegra_enterprise_init,
 	.dt_compat	= tai_dt_board_compat,
 MACHINE_END

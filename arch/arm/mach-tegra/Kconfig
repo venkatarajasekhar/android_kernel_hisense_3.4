@@ -292,6 +292,78 @@ config MACH_TEGRA_ENTERPRISE
        help
          Support for NVIDIA Enterprise development platform
 
+config MACH_M470
+       bool "M470 board"
+       depends on MACH_TEGRA_ENTERPRISE
+	   help
+         Support for Hisense M470 development platform
+
+config BOARD_M470
+       bool "M470"
+       depends on MACH_M470
+	   help
+         Support for Hisense M470 development platform
+
+config BOARD_M470_V1
+       bool "M470"
+       depends on BOARD_M470
+	   help
+         Support for Hisense M470 V1 development platform
+
+config BOARD_M470_V2
+       bool "M470"
+       depends on BOARD_M470
+	   help
+         Support for Hisense M470 V2 development platform
+
+config MACH_M470BSD
+       bool "M470BSD board"
+       depends on MACH_TEGRA_ENTERPRISE
+	   help
+         Support for Hisense M470BSD development platform
+
+config BOARD_M470BSD
+       bool "M470BSD"
+       depends on MACH_M470BSD
+	   help
+         Support for Hisense M470BSD development platform
+
+config BOARD_M470BSD_V1
+       bool "M470BSD"
+       depends on BOARD_M470BSD
+	   help
+         Support for Hisense M470BSD V1 development platform
+
+config BOARD_M470BSD_V2
+       bool "M470BSD"
+       depends on BOARD_M470BSD
+	   help
+         Support for Hisense M470BSD V2 development platform
+
+config MACH_M470BSS
+       bool "M470BSS board"
+       depends on MACH_TEGRA_ENTERPRISE
+	   help
+         Support for Hisense M470BSS development platform
+
+config BOARD_M470BSS
+       bool "M470BSS"
+       depends on MACH_M470BSS
+	   help
+         Support for Hisense M470BSS development platform
+
+config BOARD_M470BSS_V1
+       bool "M470BSS"
+       depends on BOARD_M470BSS
+	   help
+         Support for Hisense M470BSS V1 development platform
+
+config BOARD_M470BSS_V2
+       bool "M470BSS"
+       depends on BOARD_M470BSS
+	   help
+         Support for Hisense M470BSS V2 development platform
+
 config MACH_TAI
        bool "Tai board"
        depends on MACH_TEGRA_ENTERPRISE
