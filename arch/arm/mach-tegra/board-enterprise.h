@@ -170,4 +170,73 @@ enum tegra_bb_type {
 /* External pwm is used for TAI (E1239) but do not set this compiler switch */
 #define IS_EXTERNAL_PWM		0
 
+//M470 GPIO Start
+#define TEGRA_GPIO_M470_HP_DET			 TEGRA_GPIO_PO5
+#define TEGRA_GPIO_M470_KEY_DET		   	 TEGRA_GPIO_PO4
+#define TEGRA_GPIO_CDC_IRQ_N    TEGRA_GPIO_PW3
+#define TEGRA_GPIO_CAM_AVDD_PWR_EN         TEGRA_GPIO_PV1
+#define TEGRA_GPIO_CAM_PWR_EN   TEGRA_GPIO_PX1
+#define TEGRA_GPIO_EN_CODEC_PA  TEGRA_GPIO_PX0
+#define TEGRA_GPIO_GYRO_IRQ_N   TEGRA_GPIO_PX2
+#define TEGRA_GPIO_EN_VDD_SDMMC1    TEGRA_GPIO_PP1
+#define TEGRA_GPIO_EN_VDDIO_VID_OC_N    TEGRA_GPIO_PP2
+#define TEGRA_GPIO_GPS_PWN                      TEGRA_GPIO_PP0
+#define TEGRA_GPIO_NFC_PWN                      TEGRA_GPIO_PP3
+#define TEGRA_GPIO_AP_ONKEY_N                   TEGRA_GPIO_PV0
+//#define TEGRA_GPIO_CAM_AF_PWDN_N            TEGRA_GPIO_PBB3
+#define TEGRA_GPIO_CAM_AF_EN            TEGRA_GPIO_PBB3
+
+
+
+#define TEGRA_GPIO_REAR_CAM_PWDN            TEGRA_GPIO_PBB5
+#define TEGRA_GPIO_FRONT_CAM_RST            TEGRA_GPIO_PBB6
+#define TEGRA_GPIO_FRONT_CAM_PWDN       TEGRA_GPIO_PBB7
+//#define TEGRA_GPIO_CAM_RST_N                    TEGRA_GPIO_PCC1
+#define TEGRA_GPIO_REAR_CAM_RST_N                    TEGRA_GPIO_PCC1
+
+
+#define TEGRA_GPIO_BL_PWM			TEGRA_GPIO_PH0
+#define TEGRA_GPIO_LCD_BL_EN                    TEGRA_GPIO_PH2
+#define TEGRA_GPIO_EN_VDD_BL                      TEGRA_GPIO_PH3
+#define TEGRA_GPIO_EN_VDD_FUSE                  TEGRA_GPIO_PH4
+#define TEGRA_GPIO_EN_LCD_1V8                       TEGRA_GPIO_PH5
+#define TEGRA_GPIO_TP_LP0                                TEGRA_GPIO_PH6
+#define TEGRA_GPIO_PMU_CHRG_DET             TEGRA_GPIO_PI6
+#define TEGRA_GPIO_SDMMC_CD_N               TEGRA_GPIO_PI5
+#define TEGRA_GPIO_HDMI_HPD                         TEGRA_GPIO_PN7
+#define TEGRA_GPIO_COMPASS_RST_N                TEGRA_GPIO_PN4
+#define TEGRA_GPIO_COMPASS_DRDY                 TEGRA_GPIO_PW0
+#define TEGRA_GPIO_LVDS_SHTDN_N                 TEGRA_GPIO_PN6
+#define TEGRA_GPIO_BT_REG_ON                        TEGRA_GPIO_PD2
+#define TEGRA_GPIO_EN_VDD_PNL                       TEGRA_GPIO_PW1
+#define TEGRA_GPIO_RST_CDC                              TEGRA_GPIO_PB2
+#define TEGRA_GPIO_PMU_MSECURE                  TEGRA_GPIO_PC1
+#define TEGRA_GPIO_EN_LCD_3V3                       TEGRA_GPIO_PC6
+#define TEGRA_GPIO_ALS_IRQ_N                            TEGRA_GPIO_PZ2                   
+#define TEGRA_GPIO_TS_RESET_N                           TEGRA_GPIO_PN5
+#define TEGRA_GPIO_TS_IRQ_N                                 TEGRA_GPIO_PZ3
+#define TEGRA_GPIO_WLAN_RST_N                       TEGRA_GPIO_PD3
+#define TEGRA_GPIO_BT_RST_N                             TEGRA_GPIO_PD4
+#define TEGRA_GPIO_VOL_UP                               TEGRA_GPIO_PQ1
+#define TEGRA_GPIO_VOL_DOWN                         TEGRA_GPIO_PQ2
+#define TEGRA_GPIO_GPS_RST_N                            TEGRA_GPIO_PQ7
+#define TEGRA_GPIO_TEMP_ALERT_N                     TEGRA_GPIO_PS6
+#define TEGRA_GPIO_NFC_WAKE                             TEGRA_GPIO_PS7
+//#define TEGRA_GPIO_CAM_FLASH                            TEGRA_GPIO_PR2
+#define TEGRA_GPIO_CAM_FLASH_EN                            TEGRA_GPIO_PR2
+
+
+
+//#define TEGRA_GPIO_CAM_TORCH                        TEGRA_GPIO_PR3
+#define TEGRA_GPIO_CAM_TORCH_EN                        TEGRA_GPIO_PR3
+
+#define TEGRA_GPIO_WLAN_HOST_WAKE               TEGRA_GPIO_PS0
+#define TEGRA_GPIO_BATREMOVAL                           TEGRA_GPIO_PS1
+#define TEGRA_GPIO_NRESWARM                             TEGRA_GPIO_PU0
+#define TEGRA_GPIO_HOST_BT_WAKE                         TEGRA_GPIO_PU1
+#define TEGRA_GPIO_NFC_IRQ                                      TEGRA_GPIO_PU5
+#define TEGRA_GPIO_BT_HOST_WAKE                         TEGRA_GPIO_PU6
+#define TEGRA_GPIO_FACTORY_LED                  TEGRA_GPIO_PU3
+//M470 GPIO End
+
 #endif /*_MACH_TEGRA_BOARD_ENTERPRISE_H */

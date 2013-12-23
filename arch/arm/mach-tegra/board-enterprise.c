@@ -1178,6 +1178,21 @@ static const char *tai_dt_board_compat[] = {
 	NULL
 };
 
+#if defined(CONFIG_BOARD_M470)
+MACHINE_START(M470, "m470")
+	.atag_offset	= 0x100,
+	.soc		= &tegra_soc_desc,
+	.map_io         = tegra_map_common_io,
+	.reserve        = tegra_enterprise_reserve,
+	.init_early	= tegra30_init_early,
+	.init_irq       = tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
+	.timer          = &tegra_timer,
+	.init_machine   = tegra_enterprise_dt_init,
+	.restart	= tegra_assert_system_reset,
+	.dt_compat	= enterprise_dt_board_compat,
+MACHINE_END
+#else
 MACHINE_START(TEGRA_ENTERPRISE, "tegra_enterprise")
 	.atag_offset	= 0x100,
 	.soc		= &tegra_soc_desc,
@@ -1191,6 +1206,7 @@ MACHINE_START(TEGRA_ENTERPRISE, "tegra_enterprise")
 	.restart	= tegra_assert_system_reset,
 	.dt_compat	= enterprise_dt_board_compat,
 MACHINE_END
+#endif
 
 MACHINE_START(TAI, "tai")
 	.atag_offset	= 0x100,
