@@ -18,7 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/i2c/ft5x06_ts.h>
-#include <linux/earlysuspend.h>
+//#include <linux/earlysuspend.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -121,7 +121,7 @@ struct ft5x0x_ts_data {
 	struct workqueue_struct *ts_workqueue;
 	struct mutex device_mode_mutex; 
 	struct ts_event event;
-	struct early_suspend early_suspend;
+//	struct early_suspend early_suspend;
 };
 
 #ifdef CONFIG_CHARGER_TPS8003X
@@ -1132,6 +1132,7 @@ static irqreturn_t ft5x0x_ts_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#if 0
 #ifdef CONFIG_HAS_EARLYSUSPEND
 
 static void ft5x0x_ts_suspend(struct early_suspend *handler)
@@ -1213,6 +1214,7 @@ static void ft5x0x_ts_resume(struct early_suspend *handler)
 #endif
 
 }
+#endif
 #endif
 
 /* sysfs */
@@ -1736,12 +1738,14 @@ static int ft5x0x_ts_probe(struct i2c_client *client,
 	/*make sure CTP already finish startup process */
 	msleep(150);
 	
+#if 0
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	printk("==register_early_suspend =\n");
 	ft5x0x_ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ft5x0x_ts->early_suspend.suspend = ft5x0x_ts_suspend;
 	ft5x0x_ts->early_suspend.resume	= ft5x0x_ts_resume;
 	register_early_suspend(&ft5x0x_ts->early_suspend);
+#endif
 #endif
 
 #ifdef CFG_SUPPORT_AUTO_UPG
