@@ -49,7 +49,7 @@
 #define FT5x0x_RX_NUM   16
 
 #ifdef CONFIG_BATTERY_BQ27x00
-extern bool battery_standalone_fg(void);
+//extern bool battery_standalone_fg(void);
 static bool already_in_suspend = false;
 #if (defined(CONFIG_MACH_M470)||defined(CONFIG_MACH_M470BSD)||defined(CONFIG_MACH_M470BSS))
 extern unsigned int his_board_version;
@@ -62,8 +62,8 @@ static bool gen2_i2c_3v3_in_use(void)
 	bool in_use = false;
 	if(his_board_version == M470_REVISION_2A_TS_3V3
 		|| his_board_version == M470_REVISION_2BC_TS_3V3) {
-		if(battery_standalone_fg())
-			in_use = true;
+	//	if(battery_standalone_fg())
+	//		in_use = true;
 	}
 	return in_use;
 }
@@ -124,10 +124,10 @@ struct ft5x0x_ts_data {
 //	struct early_suspend early_suspend;
 };
 
-#ifdef CONFIG_CHARGER_TPS8003X
-extern enum charging_type tps8003x_charger_type(void);
+//#ifdef CONFIG_CHARGER_TPS8003X
+//extern enum charging_type tps8003x_charger_type(void);
 
-#endif
+//#endif
 
 static u8 ft5x0x_enter_factory(struct ft5x0x_ts_data *ft5x0x_ts);
 static u8 ft5x0x_enter_work(struct ft5x0x_ts_data *ft5x0x_ts);
@@ -1767,15 +1767,15 @@ static int ft5x0x_ts_probe(struct i2c_client *client,
 	{
 		printk("ft5x0x:%s() - sysfs_create_group() succeeded.\n", __FUNCTION__);
 	}
-#ifdef CONFIG_CHARGER_TPS8003X
+//#ifdef CONFIG_CHARGER_TPS8003X
 
 	/* If USB/AC is plugged in, start anti-interference, heqi */
-	if(tps8003x_charger_type() == AC_CHARGER || tps8003x_charger_type() == USB_CHARGER)
-	{	
-		ft5x0x_write_reg(FT5X0X_REG_INTERFERENCE, 0x1);
-		printk("[FTS]: start anti-interference.\n");
-	}
-#endif
+//	if(tps8003x_charger_type() == AC_CHARGER || tps8003x_charger_type() == USB_CHARGER)
+//	{	
+//		ft5x0x_write_reg(FT5X0X_REG_INTERFERENCE, 0x1);
+//		printk("[FTS]: start anti-interference.\n");
+//	}
+//#endif
 	ft5x06_has_probe = 1;
 	
 	printk("[FTS] ====probe over ====\n");
