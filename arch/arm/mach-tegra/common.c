@@ -1836,7 +1836,7 @@ void tegra_enable_pinmux(void)
 }
 
 static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
-	[TEGRA_REVISION_UNKNOWN] = "A03",
+	[TEGRA_REVISION_UNKNOWN] = "unknown",
 	[TEGRA_REVISION_A01]     = "A01",
 	[TEGRA_REVISION_A02]     = "A02",
 	[TEGRA_REVISION_A03]     = "A03",
@@ -1858,17 +1858,17 @@ static const char * __init tegra_get_family(void)
 	cid = (cid >> 8) & 0xFF;
 
 	switch (cid) {
-	//case TEGRA_CHIPID_TEGRA2:
-	//	cid = 2;
-	//	break;
-	//case TEGRA_CHIPID_TEGRA3:
-	//	cid = 3;
-	//	break;
-	//case TEGRA_CHIPID_TEGRA11:
-	//	cid = 11;
-	//	break;
+	case TEGRA_CHIPID_TEGRA2:
+		cid = 2;
+		break;
+	case TEGRA_CHIPID_TEGRA3:
+		cid = 3;
+		break;
+	case TEGRA_CHIPID_TEGRA11:
+		cid = 11;
+		break;
 
-	//case TEGRA_CHIPID_UNKNOWN:
+	case TEGRA_CHIPID_UNKNOWN:
 	default:
 		cid = 3;
 	}
