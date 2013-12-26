@@ -831,6 +831,8 @@ ifdef CONFIG_KALLSYMS
 
 last_kallsyms := 2
 
+KALLSYMS_EXTRA_PASS=1
+
 ifdef KALLSYMS_EXTRA_PASS
 ifneq ($(KALLSYMS_EXTRA_PASS),0)
 last_kallsyms := 3
