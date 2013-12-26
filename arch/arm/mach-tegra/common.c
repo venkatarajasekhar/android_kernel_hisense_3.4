@@ -142,22 +142,6 @@ unsigned long tegra_nck_start;
 unsigned long tegra_nck_size;
 #endif
 
-unsigned int tegra_power_reason; //added by wangyongqing
-unsigned int cap_of_battery; //added by wangyongqing
-unsigned int his_hw_ver; //added by wangyongqing
-unsigned int his_nfc_ver; //added by wangyongqing
-unsigned int his_hpdet; //added by wangyongqing
-char his_wifi_addr[18];
-char his_bt_addr[18];
-
-//his_board_version value:
-//1:  V2.0A, camera enable, bt enable changed, TS_3V3 should not disable when closed backlight
-//0:  V2.0B/V2.0C, TS_3V3 should not be disabled when closed backlight. 
-//2:  V2.0D (support 1.8 coulometer), TS_3V3 should be disabled when closed backlight
-//3:  V2.0D (support 1.8 coulometer, delete ESE chip), TS_3V3 should be disabled when closed backlight
-unsigned int his_board_version; //added by wangyongqing
-unsigned int ddr3_det; //added by wangyongqing
-
 static int pmu_core_edp;
 static int board_panel_type;
 static enum power_supply_type pow_supply_type = POWER_SUPPLY_TYPE_MAINS;
@@ -813,75 +797,6 @@ static int __init tegra_lp0_vec_arg(char *options)
 	return 0;
 }
 early_param("lp0_vec", tegra_lp0_vec_arg);
-
-//start: added by wangyongqing
-static int __init tegra_power_reason_arg(char *options)
-{
-    char *p = options;
-    //printk("wangyongqing: power_reason = %s\n", p);
-    tegra_power_reason = simple_strtol(p, NULL, 16);
-    printk("wangyongqing: tegra_power_reason = 0x%x\n", tegra_power_reason);
-    return 0;
-}
-early_param("power_reason", tegra_power_reason_arg);
-
-static int __init tegra_wifi_addr_arg(char *info)
-{
-	char *p = info;
-        memcpy(his_wifi_addr, p, 18);
-        //printk("wangyongqing: wifi = %s\n", his_wifi_addr);
-	return 0;
-}
-early_param("wifiaddr", tegra_wifi_addr_arg);
-
-static int __init tegra_bt_addr_arg(char *info)
-{
-	char *p = info;
-        memcpy(his_bt_addr, p, 18);
-        //printk("wangyongqing: bt = %s\n", his_bt_addr);
-	return 0;
-}
-early_param("btaddr", tegra_bt_addr_arg);
-
-static int __init tegra_cap_of_battery_arg(char *options)
-{
-    char *p = options;
-    cap_of_battery = simple_strtol(p, NULL, 16);
-    return 0;
-}
-early_param("cap_batt", tegra_cap_of_battery_arg);
-
-static int __init tegra_hardware_version_arg(char *options)
-{
-    char *p = options;
-    his_hw_ver = simple_strtol(p, NULL, 16);
-    return 0;
-}
-early_param("vhard", tegra_hardware_version_arg);
-
-static int __init tegra_hpdet_arg(char *options)
-{
-    char *p = options;
-    his_hpdet = simple_strtol(p, NULL, 16);
-    return 0;
-}
-early_param("hpdet", tegra_hpdet_arg);
-
-static int __init tegra_nfc_verify_module_detected_arg(char *options)
-{
-    char *p = options;
-    his_nfc_ver = simple_strtol(p, NULL, 16);
-    return 0;
-}
-early_param("vnfc", tegra_nfc_verify_module_detected_arg);
-
-static int __init tegra_m470_board_version_arg(char *options)
-{
-    char *p = options;
-    his_board_version = simple_strtol(p, NULL, 16);
-    return 0;
-}
-early_param("m470_v", tegra_m470_board_version_arg);
 
 #ifdef CONFIG_TEGRA_NVDUMPER
 static int __init tegra_nvdumper_arg(char *options)
