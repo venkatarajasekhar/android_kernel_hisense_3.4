@@ -50,16 +50,6 @@ extern enum tegra_revision tegra_revision;
 enum tegra_chipid tegra_get_chipid(void);
 unsigned int tegra_get_minor_rev(void);
 
-#if (defined(CONFIG_BOARD_M470)||defined(CONFIG_BOARD_M470BSD)||defined(CONFIG_BOARD_M470BSS))
-//Hisese Revision
-enum {
-	M470_REVISION_2A_TS_3V3	= 1,//V2.0 A
-	M470_REVISION_2BC_TS_3V3= 0,//V2.0 B/C
-	M470_REVISION_2D_SYS_1V8= 2,//V2.0D w ESE
-	M470_REVISION_2D_NO_ESE	= 3,//V2.0D w/o ESE
-};
-#endif
-
 #ifndef CONFIG_TEGRA_SILICON_PLATFORM
 void tegra_get_netlist_revision(u32 *netlist, u32* patchid);
 #else

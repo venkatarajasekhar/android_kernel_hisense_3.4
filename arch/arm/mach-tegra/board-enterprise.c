@@ -79,10 +79,6 @@
 #include "pm.h"
 #include "common.h"
 
-#ifdef CONFIG_TOUCHSCREEN_FT5X06
-#include <linux/i2c/ft5x06_ts.h>
-#endif
-
 /* wl128x BT, FM, GPS connectivity chip */
 struct ti_st_plat_data enterprise_wilink_pdata = {
        .nshutdown_gpio = TEGRA_GPIO_PE6,
@@ -760,74 +756,6 @@ static int __init enterprise_touch_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_TOUCHSCREEN_FT5X06
-	static struct ft5x06_platform_data ft_platform_data = {
-		.x_max = 800,
-		.y_max = 1280,
-	};
-	
-	
-	static const struct i2c_board_info ft5x06_i2c_touch_info[] = {
-		{
-			I2C_BOARD_INFO("ft5x06", 0x38),
-			.irq = TEGRA_GPIO_TS_IRQ_N,
-			.platform_data = &ft_platform_data,
-		},
-	};
-	
-	static int __init enterprise_ft5x06_touch_init(void)
-	{
-	int ret;
-	ret = gpio_request(TEGRA_GPIO_PZ3, "ft5x06-1");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_input(TEGRA_GPIO_PZ3);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_PZ3);
-		return ret;
-	}
-	ret = gpio_request(TEGRA_GPIO_TP_VDD_EN, "ft5x06-2");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_output(TEGRA_GPIO_TP_VDD_EN, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_TP_VDD_EN);
-		return ret;
-	}
-	ret = gpio_request(TEGRA_GPIO_TS_WAKE, "ft5x06-3");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_output(TEGRA_GPIO_TS_WAKE, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_TS_WAKE);
-		return ret;
-	}
-		//gpio_request(TEGRA_GPIO_TS_WAKE, "tp_wake");
-		gpio_direction_output(TEGRA_GPIO_TS_WAKE, 1);
-		msleep(20);
-		
-		//gpio_request(TEGRA_GPIO_TP_VDD_EN, "tp_vdd_en");
-		gpio_direction_output(TEGRA_GPIO_TP_VDD_EN, 1);
-		
-		i2c_register_board_info(1, ft5x06_i2c_touch_info, 1);
-	
-		return 0;
-	}
-	
-#endif
-
 static void enterprise_usb_hsic_postsupend(void)
 {
 	pr_debug("%s\n", __func__);
@@ -1197,10 +1125,7 @@ static void __init tegra_enterprise_init(void)
 #endif
 	enterprise_kbc_init();
 	enterprise_nfc_init();
-//	enterprise_touch_init();
-#ifdef CONFIG_TOUCHSCREEN_FT5X06
-		enterprise_ft5x06_touch_init();
-#endif
+	enterprise_touch_init();
 	enterprise_audio_init();
 	enterprise_baseband_init();
 	enterprise_panel_init();

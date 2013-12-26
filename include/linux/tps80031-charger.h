@@ -33,27 +33,6 @@ enum charging_states {
 	charging_state_charging_stopped,
 };
 
-enum charging_type {
-	NONE_CHARGER,
-	USB_CHARGER,
-	AC_CHARGER,
-	OTG_CHARGER,
-};
-
-#if defined(CONFIG_BATTERY_BQ27x00)
-/* Charging status detect by PMU,M470's gasgauge doesn't work well in DSG update */
-enum {
-	CHARGING_UNKNOW	= 0,
-	CHAEGING_DISCHG,
-	CHAEGING_CHGING,
-	CHAEGING_DONE,
-	CHARGING_OVER_HEAT,
-	CHARGING_OVER_VOLTAGE,
-	CHARGING_GATED,
-	CHARGING_VBUS_NO_PRESENT,
-};
-#endif
-
 /**
  * Callback type definition which is called when any state changed in the
  * charging.
@@ -68,14 +47,6 @@ struct tps80031_charger_platform_data {
 	int refresh_time;
 	int irq_base;
 	int watch_time_sec;
-	int safety_timer_en;
-	long safety_timer_sec;
-	int  jeita_current_en;
-	int  jeita_limited_temp_low;
-	int  jeita_limited_temp_high;
-	int  jeita_limited_temp_cap;
-	int  jeita_limited_current;
-	int  jeita_limited_voltage;
 	struct regulator_consumer_supply *consumer_supplies;
 	int num_consumer_supplies;
 	int (*board_init)(void *board_data);
