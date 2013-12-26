@@ -3247,9 +3247,9 @@ static const char * const vi_alt1_groups[] = {
 
 static const char * const vi_alt2_groups[] = {
 	"vi_mclk_pt1",
-#ifdef CONFIG_MACH_M470
-	"cam_mclk_pcc0",
-#endif
+//#ifdef CONFIG_MACH_M470
+//	"cam_mclk_pcc0",
+//#endif
 };
 
 static const char * const vi_alt3_groups[] = {
@@ -3452,11 +3452,11 @@ static const struct tegra_pingroup tegra30_groups[] = {
 	PINGROUP(gmi_wp_n_pc7,         RSVD1,        NAND,         GMI,          GMI_ALT,      RSVD1,        0x31c0, N, N),
 	PINGROUP(sdmmc3_dat5_pd0,      PWM0,         SPI4,         SDMMC3,       SPI2,         SPI2,         0x33ac, N, N),
 	PINGROUP(sdmmc3_dat4_pd1,      PWM1,         SPI4,         SDMMC3,       SPI2,         SPI2,         0x33a8, N, N),
-#ifdef CONFIG_MACH_M470
-	PINGROUP(lcd_dc1_pd2,          DISPLAYA,     DISPLAYB,     RSVD1,        RSVD2,        DISPLAYA,     0x310c, N, N),
-#else
+//#ifdef CONFIG_MACH_M470
+//	PINGROUP(lcd_dc1_pd2,          DISPLAYA,     DISPLAYB,     RSVD1,        RSVD2,        DISPLAYA,     0x310c, N, N),
+//#else
 	PINGROUP(lcd_dc1_pd2,          DISPLAYA,     DISPLAYB,     RSVD3,        RSVD4,        RSVD4,        0x310c, N, N),
-#endif
+//#endif
 	PINGROUP(sdmmc3_dat6_pd3,      SPDIF,        SPI4,         SDMMC3,       SPI2,         SPI2,         0x33b0, N, N),
 	PINGROUP(sdmmc3_dat7_pd4,      SPDIF,        SPI4,         SDMMC3,       SPI2,         SPI2,         0x33b4, N, N),
 	PINGROUP(vi_d1_pd5,            DDR,          SDMMC2,       VI,           RSVD4,        RSVD4,        0x3128, N, Y),
@@ -3654,11 +3654,11 @@ static const struct tegra_pingroup tegra30_groups[] = {
 	PINGROUP(pbb5,                 VGP5,         DISPLAYA,     DISPLAYB,     SDMMC4,       SDMMC4,       0x32a0, N, N),
 	PINGROUP(pbb6,                 VGP6,         DISPLAYA,     DISPLAYB,     SDMMC4,       SDMMC4,       0x32a4, N, N),
 	PINGROUP(pbb7,                 I2S4,         RSVD2,        RSVD3,        SDMMC4,       RSVD3,        0x32a8, N, N),
-#ifdef CONFIG_MACH_M470
-	PINGROUP(cam_mclk_pcc0,        VI,           VI_ALT1,      VI_ALT2,      SDMMC4,       RSVD1,        0x3284, N, N),
-#else
+//#ifdef CONFIG_MACH_M470
+//	PINGROUP(cam_mclk_pcc0,        VI,           VI_ALT1,      VI_ALT2,      SDMMC4,       RSVD1,        0x3284, N, N),
+//#else
 	PINGROUP(cam_mclk_pcc0,        VI,           VI_ALT1,      VI_ALT3,      SDMMC4,       SDMMC4,       0x3284, N, N),
-#endif
+//#endif
 	PINGROUP(pcc1,                 I2S4,         RSVD2,        RSVD3,        SDMMC4,       RSVD3,        0x3288, N, N),
 	PINGROUP(pcc2,                 I2S4,         RSVD2,        RSVD3,        RSVD4,        RSVD4,        0x32ac, N, N),
 	PINGROUP(sdmmc4_rst_n_pcc3,    VGP6,         RSVD2,        RSVD3,        SDMMC4,       RSVD3,        0x3280, N, Y),
