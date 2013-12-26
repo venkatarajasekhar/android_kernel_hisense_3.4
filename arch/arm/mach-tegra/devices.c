@@ -114,6 +114,7 @@ struct platform_device tegra_gpio_device = {
 	.num_resources	= ARRAY_SIZE(gpio_resource),
 };
 
+#if 0
 static struct resource pinmux_resource[] = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	[0] = {
@@ -172,6 +173,7 @@ struct platform_device tegra_pinmux_device = {
 	.resource	= pinmux_resource,
 	.num_resources	= ARRAY_SIZE(pinmux_resource),
 };
+#endif
 
 static struct resource i2c_resource1[] = {
 	[0] = {

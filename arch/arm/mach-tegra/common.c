@@ -1825,6 +1825,7 @@ void __init tegra_release_bootloader_fb(void)
 	}
 }
 
+# if 0
 static struct platform_device *pinmux_devices[] = {
 	&tegra_gpio_device,
 	&tegra_pinmux_device,
@@ -1834,6 +1835,7 @@ void tegra_enable_pinmux(void)
 {
 	platform_add_devices(pinmux_devices, ARRAY_SIZE(pinmux_devices));
 }
+#endif
 
 static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_UNKNOWN] = "unknown",
