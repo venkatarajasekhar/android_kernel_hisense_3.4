@@ -1870,7 +1870,7 @@ static const char * __init tegra_get_family(void)
 
 	case TEGRA_CHIPID_UNKNOWN:
 	default:
-		cid = 0;
+		cid = 3;
 	}
 	return kasprintf(GFP_KERNEL, "Tegra%d", cid);
 }
