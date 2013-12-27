@@ -24,9 +24,6 @@
 #include "core.h"
 #include "devicetree.h"
 
-#define dev_dbg(dev, fmt, ...)            \
-        printk(KERN_INFO "%s %s: " fmt, dev_driver_string(dev), dev_name(dev), ##__VA_ARGS__)
-
 /**
  * struct pinctrl_dt_map - mapping table chunk parsed from device tree
  * @node: list node for struct pinctrl's @dt_maps field
@@ -44,7 +41,7 @@ static void dt_free_map(struct pinctrl_dev *pctldev,
 		     struct pinctrl_map *map, unsigned num_maps)
 {
 	if (pctldev) {
-		const struct pinctrl_ops *ops = pctldev->desc->pctlops;
+		struct pinctrl_ops *ops = pctldev->desc->pctlops;
 		ops->dt_free_map(pctldev, map, num_maps);
 	} else {
 		/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
@@ -98,15 +95,15 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 	return pinctrl_register_map(map, num_maps, false, true);
 }
 
-struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+static struct pinctrl_dev *find_pinctrl_by_of_node(struct device_node *np)
 {
 	struct pinctrl_dev *pctldev;
 
-	pctldev = get_pinctrl_dev_from_of_node(np);
-	if (!pctldev)
-		return NULL;
+	list_for_each_entry(pctldev, &pinctrldev_list, node)
+		if (pctldev->dev->of_node == np)
+			return pctldev;
 
-	return pctldev;
+	return NULL;
 }
 
 static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
@@ -114,7 +111,7 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 {
 	struct device_node *np_pctldev;
 	struct pinctrl_dev *pctldev;
-	const struct pinctrl_ops *ops;
+	struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
 	unsigned num_maps;
@@ -130,14 +127,9 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 			/* OK let's just assume this will appear later then */
 			return -EPROBE_DEFER;
 		}
-		pctldev = get_pinctrl_dev_from_of_node(np_pctldev);
+		pctldev = find_pinctrl_by_of_node(np_pctldev);
 		if (pctldev)
 			break;
-		/* Do not defer probing of hogs (circular loop) */
-		if (np_pctldev == p->dev->of_node) {
-			of_node_put(np_pctldev);
-			return -ENODEV;
-		}
 	}
 	of_node_put(np_pctldev);
 

@@ -1094,10 +1094,6 @@ static void enterprise_nfc_init(void)
 	}
 }
 
-static struct platform_device *temp_gpio_device[] = {
-       &tegra_gpio_device,
-};
-
 static void __init tegra_enterprise_init(void)
 {
 	struct board_info board_info;
@@ -1108,11 +1104,10 @@ static void __init tegra_enterprise_init(void)
 		tegra_clk_init_from_table(enterprise_clk_i2s2_table);
 
 	tegra_clk_init_from_table(enterprise_clk_init_table);
-	platform_add_devices(temp_gpio_device, ARRAY_SIZE(temp_gpio_device));
-//	tegra_enable_pinmux();
+	tegra_enable_pinmux();
 	tegra_smmu_init();
 	tegra_soc_device_init("tegra_enterprise");
-//	enterprise_pinmux_init();
+	enterprise_pinmux_init();
 	enterprise_i2c_init();
 	enterprise_uart_init();
 	enterprise_usb_init();

@@ -98,8 +98,6 @@ void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
 void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 			      struct seq_file *s, const char *gname);
 
-void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
-				 struct seq_file *s, unsigned long config);
 #else
 
 static inline void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
@@ -116,10 +114,4 @@ static inline void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	return;
 }
 
-static inline void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
-					       struct seq_file *s,
-					       unsigned long config)
-{
-	return;
-}
 #endif

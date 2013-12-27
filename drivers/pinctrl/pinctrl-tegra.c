@@ -31,11 +31,10 @@
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 
+#include <mach/pinconf-tegra.h>
+
 #include "core.h"
 #include "pinctrl-tegra.h"
-
-#define dev_dbg(dev, fmt, ...)            \
-        printk(KERN_INFO "%s %s: " fmt, dev_driver_string(dev), dev_name(dev), ##__VA_ARGS__)
 
 struct tegra_pmx {
 	struct device *dev;
@@ -187,9 +186,8 @@ static int add_config(struct device *dev, unsigned long **configs,
 	return 0;
 }
 
-static void tegra_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
-				      struct pinctrl_map *map,
-				      unsigned num_maps)
+void tegra_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
+			       struct pinctrl_map *map, unsigned num_maps)
 {
 	int i;
 
@@ -221,11 +219,11 @@ static const struct cfg_param {
 	{"nvidia,drive-type",		TEGRA_PINCONF_PARAM_DRIVE_TYPE},
 };
 
-static int tegra_pinctrl_dt_subnode_to_map(struct device *dev,
-					   struct device_node *np,
-					   struct pinctrl_map **map,
-					   unsigned *reserved_maps,
-					   unsigned *num_maps)
+int tegra_pinctrl_dt_subnode_to_map(struct device *dev,
+				    struct device_node *np,
+				    struct pinctrl_map **map,
+				    unsigned *reserved_maps,
+				    unsigned *num_maps)
 {
 	int ret, i;
 	const char *function;
@@ -234,8 +232,8 @@ static int tegra_pinctrl_dt_subnode_to_map(struct device *dev,
 	unsigned long *configs = NULL;
 	unsigned num_configs = 0;
 	unsigned reserve;
+	struct property *prop;
 	const char *group;
-	struct property *prop; /* EPRJ */
 
 	ret = of_property_read_string(np, "nvidia,function", &function);
 	if (ret < 0) {
@@ -300,10 +298,9 @@ exit:
 	return ret;
 }
 
-static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
-					struct pinctrl_map **map,
-					unsigned *num_maps)
+int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np_config,
+				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	unsigned reserved_maps;
 	struct device_node *np;
@@ -325,7 +322,7 @@ static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static const struct pinctrl_ops tegra_pinctrl_ops = {
+static struct pinctrl_ops tegra_pinctrl_ops = {
 	.get_groups_count = tegra_pinctrl_get_groups_count,
 	.get_group_name = tegra_pinctrl_get_group_name,
 	.get_group_pins = tegra_pinctrl_get_group_pins,
@@ -381,10 +378,8 @@ static int tegra_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
 		if (g->funcs[i] == function)
 			break;
 	}
-	if (WARN_ON(i == ARRAY_SIZE(g->funcs))) {
-		pr_err("There was a problem with group %s \n Cannot find function!\n", g->name);
-//		return -EINVAL;
-	}
+	if (WARN_ON(i == ARRAY_SIZE(g->funcs)))
+		return -EINVAL;
 
 	val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
 	val &= ~(0x3 << g->mux_bit);
@@ -412,7 +407,7 @@ static void tegra_pinctrl_disable(struct pinctrl_dev *pctldev,
 	pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
 }
 
-static const struct pinmux_ops tegra_pinmux_ops = {
+static struct pinmux_ops tegra_pinmux_ops = {
 	.get_functions_count = tegra_pinctrl_get_funcs_count,
 	.get_function_name = tegra_pinctrl_get_func_name,
 	.get_function_groups = tegra_pinctrl_get_func_groups,
@@ -687,7 +682,7 @@ static void tegra_pinconf_config_dbg_show(struct pinctrl_dev *pctldev,
 }
 #endif
 
-static const struct pinconf_ops tegra_pinconf_ops = {
+struct pinconf_ops tegra_pinconf_ops = {
 	.pin_config_get = tegra_pinconf_get,
 	.pin_config_set = tegra_pinconf_set,
 	.pin_config_group_get = tegra_pinconf_group_get,
@@ -748,7 +743,7 @@ static struct syscore_ops pinctrl_syscore_ops = {
 
 #endif
 
-int tegra_pinctrl_probe(struct platform_device *pdev,
+int __devinit tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data)
 	{
 	struct resource *res;
@@ -826,9 +821,9 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	pmx->pctl = pinctrl_register(&tegra_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
@@ -844,10 +839,11 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);
 
-int tegra_pinctrl_remove(struct platform_device *pdev)
+int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
 
+	pinctrl_remove_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 	pinctrl_unregister(pmx->pctl);
 
 	return 0;

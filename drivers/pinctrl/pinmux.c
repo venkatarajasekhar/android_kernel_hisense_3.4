@@ -194,11 +194,6 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	}
 
 	if (!gpio_range) {
-		/*
-		 * A pin should not be freed more times than allocated.
-		 */
-		if (WARN_ON(!desc->mux_usecount))
-			return NULL;
 		desc->mux_usecount--;
 		if (desc->mux_usecount)
 			return NULL;
@@ -237,11 +232,14 @@ int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
 			unsigned pin, unsigned gpio)
 {
+	char gpiostr[16];
 	const char *owner;
 	int ret;
 
 	/* Conjure some name stating what chip and pin this is taken by */
-	owner = kasprintf(GFP_KERNEL, "%s:%d", range->name, gpio);
+	snprintf(gpiostr, 15, "%s:%d", range->name, gpio);
+
+	owner = kstrdup(gpiostr, GFP_KERNEL);
 	if (!owner)
 		return -EINVAL;
 
@@ -319,11 +317,14 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	char const * const *groups;
 	unsigned num_groups;
 	int ret;
 	const char *group;
 	int i;
+	const unsigned *pins;
+	unsigned num_pins;
 
 	if (!pmxops) {
 		dev_err(pctldev->dev, "does not support mux function\n");
@@ -378,12 +379,53 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 	}
 	setting->data.mux.group = ret;
 
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group, &pins,
+				      &num_pins);
+	if (ret) {
+		dev_err(pctldev->dev,
+			"could not get pins for device %s group selector %d\n",
+			pinctrl_dev_get_name(pctldev), setting->data.mux.group);
+			return -ENODEV;
+	}
+
+	/* Try to allocate all pins in this group, one by one */
+	for (i = 0; i < num_pins; i++) {
+		ret = pin_request(pctldev, pins[i], map->dev_name, NULL);
+		if (ret) {
+			dev_err(pctldev->dev,
+				"could not request pin %d on device %s\n",
+				pins[i], pinctrl_dev_get_name(pctldev));
+			/* On error release all taken pins */
+			i--; /* this pin just failed */
+			for (; i >= 0; i--)
+				pin_free(pctldev, pins[i], NULL);
+			return -ENODEV;
+		}
+	}
+
 	return 0;
 }
 
 void pinmux_free_setting(struct pinctrl_setting const *setting)
 {
-	/* This function is currently unused */
+	struct pinctrl_dev *pctldev = setting->pctldev;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	const unsigned *pins;
+	unsigned num_pins;
+	int ret;
+	int i;
+
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+				      &pins, &num_pins);
+	if (ret) {
+		dev_err(pctldev->dev,
+			"could not get pins for device %s group selector %d\n",
+			pinctrl_dev_get_name(pctldev), setting->data.mux.group);
+		return;
+	}
+
+	for (i = 0; i < num_pins; i++)
+		pin_free(pctldev, pins[i], NULL);
 }
 
 int pinmux_enable_setting(struct pinctrl_setting const *setting)
@@ -407,18 +449,6 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 		num_pins = 0;
 	}
 
-	/* Try to allocate all pins in this group, one by one */
-	for (i = 0; i < num_pins; i++) {
-		ret = pin_request(pctldev, pins[i], setting->dev_name, NULL);
-		if (ret) {
-			dev_err(pctldev->dev,
-				"could not request pin %d on device %s\n",
-				pins[i], pinctrl_dev_get_name(pctldev));
-			goto err_pin_request;
-		}
-	}
-
-	/* Now that we have acquired the pins, encode the mux setting */
 	for (i = 0; i < num_pins; i++) {
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc == NULL) {
@@ -430,26 +460,8 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 		desc->mux_setting = &(setting->data.mux);
 	}
 
-	ret = ops->enable(pctldev, setting->data.mux.func,
-			  setting->data.mux.group);
-
-	if (ret)
-		goto err_enable;
-
-	return 0;
-
-err_enable:
-	for (i = 0; i < num_pins; i++) {
-		desc = pin_desc_get(pctldev, pins[i]);
-		if (desc)
-			desc->mux_setting = NULL;
-	}
-err_pin_request:
-	/* On error release all taken pins */
-	while (--i >= 0)
-		pin_free(pctldev, pins[i], NULL);
-
-	return ret;
+	return ops->enable(pctldev, setting->data.mux.func,
+			   setting->data.mux.group);
 }
 
 void pinmux_disable_setting(struct pinctrl_setting const *setting)
@@ -473,7 +485,6 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 		num_pins = 0;
 	}
 
-	/* Flag the descs that no setting is active */
 	for (i = 0; i < num_pins; i++) {
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc == NULL) {
@@ -484,10 +495,6 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 		}
 		desc->mux_setting = NULL;
 	}
-
-	/* And release the pins */
-	for (i = 0; i < num_pins; i++)
-		pin_free(pctldev, pins[i], NULL);
 
 	if (ops->disable)
 		ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
@@ -506,7 +513,7 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 	if (!pmxops)
 		return 0;
 
-	mutex_lock(&pctldev->mutex);
+	mutex_lock(&pinctrl_mutex);
 	nfuncs = pmxops->get_functions_count(pctldev);
 	while (func_selector < nfuncs) {
 		const char *func = pmxops->get_function_name(pctldev,
@@ -530,7 +537,7 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 		func_selector++;
 	}
 
-	mutex_unlock(&pctldev->mutex);
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }
@@ -548,7 +555,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 	seq_puts(s, "Pinmux settings per pin\n");
 	seq_puts(s, "Format: pin (name): mux_owner gpio_owner hog?\n");
 
-	mutex_lock(&pctldev->mutex);
+	mutex_lock(&pinctrl_mutex);
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
@@ -583,7 +590,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 			seq_printf(s, "\n");
 	}
 
-	mutex_unlock(&pctldev->mutex);
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }
