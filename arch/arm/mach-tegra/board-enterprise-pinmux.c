@@ -476,7 +476,7 @@ static __initdata struct tegra_pingroup_config enterprise_unused_pinmux_common[]
 };
 
 static struct tegra_gpio_table gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_HP_DET,		.enable = true	},
+//	{ .gpio = TEGRA_GPIO_HP_DET,		.enable = true	},
 };
 struct pin_info_low_power_mode {
 	char name[16];
@@ -623,17 +623,15 @@ int __init enterprise_pinmux_init(void)
 	struct board_info board_info;
 	tegra_get_board_info(&board_info);
 
-		tegra_pinmux_config_table(enterprise_pinmux_common,
-				  ARRAY_SIZE(enterprise_pinmux_common));
-		tegra_drive_pinmux_config_table(enterprise_drive_pinmux,
-				ARRAY_SIZE(enterprise_drive_pinmux));
-		tegra_pinmux_config_table(enterprise_unused_pinmux_common,
-				ARRAY_SIZE(enterprise_unused_pinmux_common));
-
-		tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
-		enterprise_set_unused_pin_gpio(
-				enterprise_unused_gpio_pins_common,
-				ARRAY_SIZE(enterprise_unused_gpio_pins_common));
+	tegra_pinmux_config_table(enterprise_pinmux_common, 
+                                        ARRAY_SIZE(enterprise_pinmux_common));
+	tegra_drive_pinmux_config_table(enterprise_drive_pinmux, 
+                                        ARRAY_SIZE(enterprise_drive_pinmux));
+	tegra_pinmux_config_table(enterprise_unused_pinmux_common, 
+                                        ARRAY_SIZE(enterprise_unused_pinmux_common));
+	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
+	enterprise_set_unused_pin_gpio(enterprise_unused_gpio_pins_common, 
+                                        ARRAY_SIZE(enterprise_unused_gpio_pins_common));
 	tegra_pinmux_gpio_init( m470_gpio_init_table, ARRAY_SIZE( m470_gpio_init_table));
 
 	return 0;
