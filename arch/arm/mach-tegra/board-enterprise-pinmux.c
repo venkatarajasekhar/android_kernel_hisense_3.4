@@ -497,6 +497,63 @@ struct pin_info_low_power_mode {
 static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins_common[] = {
 };
 
+static __initdata tegra_gpio_init_pin_info  m470_gpio_init_table[] = {  
+        //PIN_GPIO_LPM("CDC_IRQ_N", TEGRA_GPIO_CDC_IRQ_N, 1, 1),
+       	PIN_GPIO_LPM("HP_DET", TEGRA_GPIO_M470_HP_DET, 1, 1),	   
+        PIN_GPIO_LPM("KEY_DET", TEGRA_GPIO_M470_KEY_DET, 1, 1),
+        PIN_GPIO_LPM("CAM_PWR_EN", TEGRA_GPIO_CAM_PWR_EN, 0, 0),
+        PIN_GPIO_LPM("CAM_AVDDPWREN", TEGRA_GPIO_CAM_AVDD_PWR_EN, 0, 0), 
+        
+        PIN_GPIO_LPM("EN_CODEC_PA", TEGRA_GPIO_EN_CODEC_PA, 0, 0),
+        PIN_GPIO_LPM("GYRO_IRQ_N", TEGRA_GPIO_GYRO_IRQ_N, 1, 1), 
+        //PIN_GPIO_LPM("EN_VDD_SDMMC1", TEGRA_GPIO_EN_VDD_SDMMC1, 0, 0), //regulator
+        PIN_GPIO_LPM("EN_VID_OC_N", TEGRA_GPIO_EN_VDDIO_VID_OC_N, 0, 1), 
+        //PIN_GPIO_LPM("GPS_PWN", TEGRA_GPIO_GPS_PWN, 1, 1), 
+        PIN_GPIO_LPM("NFC_PWN", TEGRA_GPIO_NFC_PWN, 0, 0), 
+        PIN_GPIO_LPM("AP_ONKEY_N", TEGRA_GPIO_AP_ONKEY_N, 1, 1), 
+                
+        PIN_GPIO_LPM("CAM_AF_PWDN_N", TEGRA_GPIO_CAM_AF_EN, 0, 0), 
+        PIN_GPIO_LPM("REAR_CAM_PWDN", TEGRA_GPIO_REAR_CAM_PWDN, 0, 0), 
+        PIN_GPIO_LPM("FRONT_CAM_RST", TEGRA_GPIO_FRONT_CAM_RST, 0, 0), 
+        PIN_GPIO_LPM("FRONT_CAM_PWDN", TEGRA_GPIO_FRONT_CAM_PWDN, 0, 0), 
+        PIN_GPIO_LPM("CAM_RST_N", TEGRA_GPIO_REAR_CAM_RST_N, 0, 0), 
+        
+        PIN_GPIO_LPM("LCD_BL_EN", TEGRA_GPIO_LCD_BL_EN, 0, 1), 
+        PIN_GPIO_LPM("EN_VDD_BL", TEGRA_GPIO_EN_VDD_BL, 0, 1), 
+        //PIN_GPIO_LPM("EN_VDD_FUSE", TEGRA_GPIO_EN_VDD_FUSE, 0, 0),  //regulator
+        PIN_GPIO_LPM("EN_LCD_1V8", TEGRA_GPIO_EN_LCD_1V8, 0, 1), 
+        PIN_GPIO_LPM("TP_LP0", TEGRA_GPIO_TP_LP0, 0, 0), 
+        PIN_GPIO_LPM("PMU_CHRG_DET", TEGRA_GPIO_PMU_CHRG_DET, 1, 0), 
+        PIN_GPIO_LPM("SDMMC_CD_N", TEGRA_GPIO_SDMMC_CD_N, 1, 1), 
+        PIN_GPIO_LPM("HDMI_HPD", TEGRA_GPIO_HDMI_HPD, 1, 1), 
+        PIN_GPIO_LPM("COMPASS_RST_N", TEGRA_GPIO_COMPASS_RST_N, 0, 1), 
+        PIN_GPIO_LPM("COMPASS_DRDY", TEGRA_GPIO_COMPASS_DRDY, 1, 0), 
+        PIN_GPIO_LPM("LVDS_SHTDN_N", TEGRA_GPIO_LVDS_SHTDN_N, 0, 1), 
+        PIN_GPIO_LPM("BT_REG_ON", TEGRA_GPIO_BT_REG_ON, 0, 0), 
+        PIN_GPIO_LPM("EN_VDD_PNL", TEGRA_GPIO_EN_VDD_PNL, 0, 1), 
+        PIN_GPIO_LPM("RST_CDC", TEGRA_GPIO_RST_CDC, 0, 1), 
+        PIN_GPIO_LPM("PMU_MSECURE", TEGRA_GPIO_PMU_MSECURE, 0, 0), 
+        PIN_GPIO_LPM("EN_LCD_3V3", TEGRA_GPIO_EN_LCD_3V3, 0, 1), 
+        PIN_GPIO_LPM("ALS_IRQ_N", TEGRA_GPIO_ALS_IRQ_N, 1, 1), 
+        PIN_GPIO_LPM("TS_RESET_N", TEGRA_GPIO_TS_RESET_N, 0, 0), 
+        PIN_GPIO_LPM("TS_IRQ_N", TEGRA_GPIO_TS_IRQ_N, 1, 1), 
+        PIN_GPIO_LPM("WLAN_RST_N", TEGRA_GPIO_WLAN_RST_N, 0, 0), 
+       // PIN_GPIO_LPM("BT_RST_N", TEGRA_GPIO_BT_RST_N, 0, 0), 
+        PIN_GPIO_LPM("VOL_UP", TEGRA_GPIO_VOL_UP, 1, 1), 
+        PIN_GPIO_LPM("VOL_DOWN", TEGRA_GPIO_VOL_DOWN, 1, 1), 
+        //PIN_GPIO_LPM("GPS_RST_N", TEGRA_GPIO_GPS_RST_N, 0, 0), 
+        PIN_GPIO_LPM("TEMP_ALERT_N", TEGRA_GPIO_TEMP_ALERT_N, 1, 1), 
+        PIN_GPIO_LPM("NFC_WAKE", TEGRA_GPIO_NFC_WAKE, 0, 0), 
+        PIN_GPIO_LPM("CAM_FLASH", TEGRA_GPIO_CAM_FLASH_EN, 0, 0), 
+        PIN_GPIO_LPM("CAM_TORCH", TEGRA_GPIO_CAM_TORCH_EN, 0, 0), 
+        PIN_GPIO_LPM("WLAN_HOST_WAKE", TEGRA_GPIO_WLAN_HOST_WAKE, 1, 1), 
+        PIN_GPIO_LPM("BATREMOVAL", TEGRA_GPIO_BATREMOVAL, 1, 1), 
+        PIN_GPIO_LPM("NRESWARM", TEGRA_GPIO_NRESWARM, 0, 1), 
+        PIN_GPIO_LPM("HOST_BT_WAKE", TEGRA_GPIO_HOST_BT_WAKE, 0, 0), 
+        PIN_GPIO_LPM("NFC_IRQ", TEGRA_GPIO_NFC_IRQ, 1, 1), 
+        PIN_GPIO_LPM("BT_HOST_WAKE", TEGRA_GPIO_BT_HOST_WAKE, 1, 1), 
+};
+
 //gpio_init_pin_info
 static void tegra_pinmux_gpio_init(tegra_gpio_init_pin_info *gpio_init_table, int list_count)
 {
@@ -508,9 +565,6 @@ static void tegra_pinmux_gpio_init(tegra_gpio_init_pin_info *gpio_init_table, in
 		pin_info = ( tegra_gpio_init_pin_info *)(gpio_init_table + i);
 		if (!pin_info->is_gpio)
 			continue;
-
-                if(pin_info->is_gpio)
-                        tegra_gpio_enable(pin_info->gpio_nr);
 
 		ret = gpio_request(pin_info->gpio_nr, pin_info->name);
 		if (ret < 0) {
@@ -580,7 +634,7 @@ int __init enterprise_pinmux_init(void)
 		enterprise_set_unused_pin_gpio(
 				enterprise_unused_gpio_pins_common,
 				ARRAY_SIZE(enterprise_unused_gpio_pins_common));
-//	tegra_pinmux_gpio_init( m470_gpio_init_table, ARRAY_SIZE( m470_gpio_init_table));
+	tegra_pinmux_gpio_init( m470_gpio_init_table, ARRAY_SIZE( m470_gpio_init_table));
 
 	return 0;
 }
