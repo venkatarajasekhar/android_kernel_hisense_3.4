@@ -543,8 +543,8 @@ static struct tegra_dc_sd_settings enterprise_sd_settings = {
 
 static struct tegra_fb_data enterprise_hdmi_fb_data = {
 	.win		= 0,
-	.xres		= 1366,
-	.yres		= 768,
+	.xres		= 800,
+	.yres		= 1280,
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
@@ -817,28 +817,24 @@ static struct tegra_stereo_out enterprise_stereo = {
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	{
-#if (DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-		.pclk = 39446000,
-#else
-		.pclk = 35860000,
-#endif
-		.h_ref_to_sync = 4,
+		.pclk = 66770000,
+		.h_ref_to_sync = 1,
 		.v_ref_to_sync = 1,
-		.h_sync_width = 16,
-		.v_sync_width = 1,
-		.h_back_porch = 32,
-		.v_back_porch = 1,
-		.h_active = 540,
-		.v_active = 960,
-		.h_front_porch = 32,
-		.v_front_porch = 2,
+		.h_sync_width = 30,
+		.v_sync_width = 2,
+		.h_back_porch = 30,
+		.v_back_porch = 2,
+		.h_active = 800,
+		.v_active = 1280,
+		.h_front_porch = 4,
+		.v_front_porch = 4,
 	},
 };
 
 static struct tegra_fb_data enterprise_dsi_fb_data = {
 	.win		= 0,
-	.xres		= 540,
-	.yres		= 960,
+	.xres		= 800,
+	.yres		= 1280,
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
@@ -862,8 +858,8 @@ static struct tegra_dc_out enterprise_disp1_out = {
 	.disable	= enterprise_dsi_panel_disable,
 	.postsuspend	= enterprise_dsi_panel_postsuspend,
 
-	.width		= 53,
-	.height		= 95,
+	.width		= 151,
+	.height		= 94,
 };
 static struct tegra_dc_platform_data enterprise_disp1_pdata = {
 	.flags		= TEGRA_DC_FLAG_ENABLED,
