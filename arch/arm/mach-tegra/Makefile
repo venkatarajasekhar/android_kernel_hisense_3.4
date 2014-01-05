@@ -260,7 +260,11 @@ obj-${CONFIG_MACH_E1853}               += board-e1853-pinmux.o
 obj-${CONFIG_MACH_E1853}               += board-e1853-sdhci.o
 
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise.o
+ifneq ($(CONFIG_MACH_M470),y)
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-panel.o
+else
+obj-${CONFIG_MACH_M470}   	        += board-m470-panel.o
+endif
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-pinmux.o
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-sdhci.o
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-memory.o

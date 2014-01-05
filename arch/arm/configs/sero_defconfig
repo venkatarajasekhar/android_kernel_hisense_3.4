@@ -2776,12 +2776,10 @@ CONFIG_USB_WDM=y
 
 #
 # NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may
-#
-
-#
 # also be needed; see USB_STORAGE Help for more info
 #
-# CONFIG_USB_STORAGE is not set
+
+CONFIG_USB_STORAGE=y
 CONFIG_USB_LIBUSUAL=y
 
 #
