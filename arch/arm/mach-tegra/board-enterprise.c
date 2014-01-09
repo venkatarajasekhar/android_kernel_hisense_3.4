@@ -1203,7 +1203,8 @@ static void __init tegra_enterprise_init(void)
 #endif
 	enterprise_audio_init();
 	enterprise_baseband_init();
-	enterprise_panel_init();
+	//enterprise_panel_init();
+	tegra_init_hdmi();
 	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX)
 		enterprise_bt_st();
 	else

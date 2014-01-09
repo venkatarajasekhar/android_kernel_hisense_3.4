@@ -899,6 +899,22 @@ static struct platform_device *enterprise_gfx_devices[] __initdata = {
 #endif
 };
 
+static int enterprise_panel_enable(void)
+{
+
+	gpio_direction_output(enterprise_en_lcd_3v3, 1);
+	msleep(20);
+	gpio_direction_output(enterprise_en_lcd_1v8, 1);
+	gpio_direction_output(enterprise_lvds_shtdn_n, 1);
+
+	if(enterprise_disp1_pdata.min_emc_clk_rate)  {
+		clk_enable(disp1_emc_min_clk);
+		clk_set_rate(disp1_emc_min_clk,enterprise_disp1_pdata.min_emc_clk_rate);
+	}
+
+	return 0;
+}
+
 static struct platform_device *external_pwm_gfx_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_NVMAP)
 	&enterprise_nvmap_device,
@@ -993,6 +1009,8 @@ int __init enterprise_panel_init(void)
 		}
 		gpio_free(enterprise_bl_pwm);
 	}
+
+	enterprise_panel_enable;
 
 #if !(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
 	err = gpio_request(enterprise_lcd_swp_pl, "lcd_te");
