@@ -925,6 +925,10 @@ int __init enterprise_panel_init(void)
 #if !(IS_EXTERNAL_PWM)
 	enterprise_disp1_backlight_data.clk_div = 0x1D;
 #endif
+        //supply information to newer version of dc which seems to require new version of libnvrm.so	
+	enterprise_dsi.chip_id = tegra_get_chipid();
+	enterprise_dsi.chip_rev = tegra_revision;
+
 	enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
 	bl_output = enterprise_bl_output_measured_a03;
 
