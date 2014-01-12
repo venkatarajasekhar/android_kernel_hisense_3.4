@@ -107,41 +107,6 @@ static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
 	250, 251, 251, 252, 253, 254, 254, 255,
 };
 
-static tegra_dc_bl_output tai_bl_output_measured = {
-	0, 1, 2, 4, 5, 6, 8, 9,
-	10, 12, 13, 14, 15, 16, 16, 17,
-	18, 19, 20, 20, 21, 22, 24, 25,
-	26, 27, 28, 29, 30, 31, 33, 34,
-	35, 36, 37, 38, 39, 41, 42, 43,
-	44, 45, 46, 46, 47, 48, 49, 50,
-	50, 51, 52, 53, 53, 54, 55, 55,
-	56, 57, 57, 58, 58, 59, 60, 61,
-	62, 63, 64, 65, 65, 66, 67, 68,
-	68, 69, 70, 70, 71, 72, 73, 73,
-	74, 75, 76, 77, 77, 78, 79, 80,
-	81, 82, 83, 84, 85, 86, 87, 87,
-	88, 89, 90, 91, 92, 93, 94, 94,
-	95, 95, 96, 97, 97, 98, 99, 99,
-	100, 101, 101, 102, 103, 103, 104, 105,
-	105, 106, 107, 108, 108, 109, 110, 111,
-	111, 112, 113, 114, 115, 115, 116, 117,
-	118, 119, 120, 121, 121, 122, 123, 124,
-	125, 126, 126, 127, 128, 129, 130, 131,
-	132, 133, 134, 134, 135, 136, 137, 138,
-	139, 140, 141, 143, 144, 145, 146, 147,
-	148, 149, 151, 152, 153, 154, 155, 156,
-	157, 158, 159, 160, 161, 163, 164, 165,
-	166, 167, 169, 170, 171, 172, 173, 175,
-	176, 177, 179, 180, 182, 183, 185, 186,
-	187, 189, 190, 191, 193, 194, 195, 197,
-	198, 199, 200, 202, 203, 204, 205, 207,
-	208, 209, 210, 212, 213, 214, 215, 216,
-	218, 219, 220, 221, 222, 223, 225, 226,
-	227, 228, 229, 231, 232, 233, 234, 235,
-	237, 238, 239, 241, 242, 244, 245, 246,
-	248, 249, 250, 251, 252, 253, 254, 255,
-};
-
 static p_tegra_dc_bl_output bl_output;
 
 static bool kernel_1st_panel_init = true;
@@ -219,16 +184,6 @@ static struct platform_device enterprise_disp1_backlight_device = {
 		.platform_data = &enterprise_disp1_backlight_data,
 	},
 };
-
-#if 0
-static struct platform_device external_pwm_disp1_backlight_device = {
-	.name	= "pwm-backlight",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &external_pwm_disp1_backlight_data,
-	},
-};
-#endif
 
 #ifdef CONFIG_TEGRA_DC
 static int enterprise_hdmi_vddio_enable(struct device *dev)
@@ -592,59 +547,6 @@ static int enterprise_dsi_panel_postsuspend(void)
 }
 #endif
 
-static struct tegra_dsi_cmd dsi_init_cmd[]= {
-	DSI_CMD_SHORT(0x05, 0x11, 0x00),
-	DSI_DLY_MS(20),
-	DSI_CMD_SHORT(0x05, 0x29, 0x00),
-	DSI_DLY_MS(20),
-};
-
-static struct tegra_dsi_cmd dsi_early_suspend_cmd[] = {
-	DSI_CMD_SHORT(0x05, 0x28, 0x00),
-	DSI_DLY_MS(20),
-};
-
-static struct tegra_dsi_cmd dsi_late_resume_cmd[] = {
-	DSI_CMD_SHORT(0x05, 0x29, 0x00),
-	DSI_DLY_MS(20),
-};
-
-static struct tegra_dsi_cmd dsi_suspend_cmd[] = {
-	DSI_CMD_SHORT(0x05, 0x28, 0x00),
-	DSI_DLY_MS(20),
-	DSI_CMD_SHORT(0x05, 0x10, 0x00),
-	DSI_DLY_MS(5),
-};
-
-struct tegra_dsi_out enterprise_dsi = {
-	.n_data_lanes = 2,
-	.pixel_format = TEGRA_DSI_PIXEL_FORMAT_24BIT_P,
-	.refresh_rate = 60,
-	.virtual_channel = TEGRA_DSI_VIRTUAL_CHANNEL_0,
-
-	.panel_has_frame_buffer = true,
-	.dsi_instance = 0,
-
-	.power_saving_suspend = true,
-	.n_init_cmd = ARRAY_SIZE(dsi_init_cmd),
-	.dsi_init_cmd = dsi_init_cmd,
-
-	.n_early_suspend_cmd = ARRAY_SIZE(dsi_early_suspend_cmd),
-	.dsi_early_suspend_cmd = dsi_early_suspend_cmd,
-
-	.n_late_resume_cmd = ARRAY_SIZE(dsi_late_resume_cmd),
-	.dsi_late_resume_cmd = dsi_late_resume_cmd,
-
-	.n_suspend_cmd = ARRAY_SIZE(dsi_suspend_cmd),
-	.dsi_suspend_cmd = dsi_suspend_cmd,
-
-	.video_data_type = TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE,
-	.lp_cmd_mode_freq_khz = 20000,
-
-	/* TODO: Get the vender recommended freq */
-	.lp_read_cmd_mode_freq_khz = 200000,
-};
-
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	{
@@ -779,7 +681,7 @@ int __init enterprise_panel_init(void)
 	int err;
 	struct resource __maybe_unused *res;
 	struct board_info board_info;
-	struct platform_device *phost1x;
+//	struct platform_device *phost1x;
 
 	tegra_get_board_info(&board_info);
 
@@ -807,11 +709,11 @@ int __init enterprise_panel_init(void)
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
 
-#ifdef CONFIG_TEGRA_GRHOST
-	phost1x = tegra3_register_host1x_devices();
-	if (!phost1x)
-		return -EINVAL;
-#endif
+//#ifdef CONFIG_TEGRA_GRHOST
+//	phost1x = tegra3_register_host1x_devices();
+//	if (!phost1x)
+//		return -EINVAL;
+//#endif
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	res = platform_get_resource_byname(&enterprise_disp1_device,
@@ -827,7 +729,7 @@ int __init enterprise_panel_init(void)
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	if (!err) {
-		enterprise_disp1_device.dev.parent = &phost1x->dev;
+//		enterprise_disp1_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp1_device);
 	}
 
@@ -836,14 +738,14 @@ int __init enterprise_panel_init(void)
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 	if (!err) {
-		enterprise_disp2_device.dev.parent = &phost1x->dev;
+//		enterprise_disp2_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp2_device);
 	}
 #endif
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_NVAVP)
 	if (!err) {
-		nvavp_device.dev.parent = &phost1x->dev;
+//		nvavp_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&nvavp_device);
 	}
 #endif
