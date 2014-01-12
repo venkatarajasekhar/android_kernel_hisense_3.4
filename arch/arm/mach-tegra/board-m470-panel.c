@@ -62,7 +62,6 @@
 
 /* Select panel to be used. */
 #define AVDD_LCD PMU_TCA6416_GPIO_PORT17
-#define DSI_PANEL_RESET 0
 
 #define enterprise_lvds_shutdown	TEGRA_GPIO_PL2
 //#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
@@ -635,70 +634,13 @@ static int enterprise_dsi_panel_enable(struct device *dev)
 
 	ret = avdd_dsi_csi_rail_enable();
 	if (ret)
-		return ret;
-
-
-#if DSI_PANEL_RESET
-	if ((board_info.fab >= BOARD_FAB_A03) ||
-		(board_info.board_id == BOARD_E1239)) {
-		if (enterprise_lcd_reg == NULL) {
-			enterprise_lcd_reg = regulator_get(dev, "lcd_vddio_en");
-			if (IS_ERR_OR_NULL(enterprise_lcd_reg)) {
-				pr_err("Could not get regulator lcd_vddio_en\n");
-				ret = PTR_ERR(enterprise_lcd_reg);
-				enterprise_lcd_reg = NULL;
-				return ret;
-			}
-		}
-		if (enterprise_lcd_reg != NULL) {
-			ret = regulator_enable(enterprise_lcd_reg);
-			if (ret < 0) {
-				pr_err("Could not enable lcd_vddio_en\n");
-				return ret;
-			}
-		}
-	}
-
-	if (kernel_1st_panel_init == true) {
-		ret = gpio_request(enterprise_dsi_panel_reset, "panel reset");
-		if (ret < 0)
-			return ret;
-		kernel_1st_panel_init = false;
-	} else {
-		ret = gpio_direction_output(enterprise_dsi_panel_reset, 0);
-		if (ret < 0) {
-			pr_err("%s: gpio_direction_ouput failed %d\n",
-				__func__, ret);
-			gpio_free(enterprise_dsi_panel_reset);
-			return ret;
-		}
-		gpio_set_value(enterprise_dsi_panel_reset, 0);
-		udelay(2000);
-		gpio_set_value(enterprise_dsi_panel_reset, 1);
-		mdelay(20);
-	}
-#endif
-
 	return ret;
 }
 
 static int enterprise_dsi_panel_disable(void)
 {
-#if DSI_PANEL_RESET
-	int ret;
-#endif
 	if (enterprise_lcd_reg != NULL)
 		regulator_disable(enterprise_lcd_reg);
-
-#if DSI_PANEL_RESET
-	ret = gpio_direction_output(enterprise_dsi_panel_reset, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(enterprise_dsi_panel_reset);
-		return ret;
-	}
-#endif
 	return 0;
 }
 
@@ -809,7 +751,6 @@ struct tegra_dsi_out enterprise_dsi = {
 	.panel_has_frame_buffer = true,
 	.dsi_instance = 0,
 
-	.panel_reset = DSI_PANEL_RESET,
 	.power_saving_suspend = true,
 	.n_init_cmd = ARRAY_SIZE(dsi_init_cmd),
 	.dsi_init_cmd = dsi_init_cmd,
@@ -976,10 +917,6 @@ int __init enterprise_panel_init(void)
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
 
-//#if !(IS_EXTERNAL_PWM)
-//	enterprise_disp1_backlight_data.clk_div = 0x1D;
-//#endif
-//	enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
 	bl_output = enterprise_bl_output_measured_a03;
 
 #if defined(CONFIG_TEGRA_NVMAP)
