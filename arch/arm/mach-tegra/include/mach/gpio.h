@@ -19,6 +19,11 @@
 
 #ifndef __MACH_TEGRA_GPIO_H
 #define __MACH_TEGRA_GPIO_H
+
+#define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
+#define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)
+
 void tegra_gpio_enable(int gpio);
 void tegra_gpio_disable(int gpio);
+
 #endif

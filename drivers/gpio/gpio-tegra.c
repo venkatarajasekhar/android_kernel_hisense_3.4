@@ -217,10 +217,11 @@ static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	return -ENOSYS;
 }
 
-static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	return irq_find_mapping(irq_domain, offset);
 }
+EXPORT_SYMBOL_GPL(tegra_gpio_to_irq);
 
 static int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
 {

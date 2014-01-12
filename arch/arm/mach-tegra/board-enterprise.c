@@ -46,7 +46,7 @@
 #include <linux/of_platform.h>
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
-
+#include <linux/nfc/bcm2079x.h>
 #include <sound/max98088.h>
 
 #include <asm/hardware/gic.h>
@@ -161,12 +161,13 @@ static void __init enterprise_bt_rfkill(void)
 }
 static void __init enterprise_setup_bluesleep(void)
 {
-		enterprise_brcm_bluesleep_resources[2].start =
-		enterprise_brcm_bluesleep_resources[2].end =
-			gpio_to_irq(TEGRA_GPIO_PS2);
-		platform_device_register(&enterprise_brcm_bluesleep_device);
-	return;
+	enterprise_brcm_bluesleep_resources[2].start =
+	enterprise_brcm_bluesleep_resources[2].end =
+		gpio_to_irq(TEGRA_GPIO_PS2);
+	platform_device_register(&enterprise_brcm_bluesleep_device);
+        return;
 }
+
 #endif
 
 static void __init enterprise_gps_init(void)
@@ -248,6 +249,18 @@ static struct aic3xxx_pdata aic3256_codec_pdata = {
 	.keyint_irq       = TEGRA_GPIO_M470_KEY_DET,
 	.irq_base	  = AIC3256_CODEC_IRQ_BASE,
 	.debounce_time_ms = 512,
+};
+
+static struct bcm2079x_platform_data nfc_pdata = {
+	.irq_gpio = TEGRA_GPIO_NFC_IRQ,
+	.en_gpio = TEGRA_GPIO_NFC_PWN,
+	.wake_gpio = TEGRA_GPIO_NFC_WAKE,
+};
+
+static struct i2c_board_info __initdata enterprise_bcm2079x_info = {
+	I2C_BOARD_INFO("bcm2079x-i2c", 0x77),
+	.platform_data = &nfc_pdata,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_NFC_IRQ),
 };
 
 static struct tegra_i2c_platform_data enterprise_i2c1_platform_data = {
@@ -390,13 +403,6 @@ static struct max98088_pdata enterprise_max98088_pdata = {
 	.receiver_mode = 0,	/* 0 = amplifier, 1 = line output */
 };
 
-static struct pn544_i2c_platform_data nfc_pdata = {
-		.irq_gpio = TEGRA_GPIO_PS4,
-		.ven_gpio = TEGRA_GPIO_PM6,
-		.firm_gpio = 0,
-};
-
-
 static struct i2c_board_info __initdata max98088_board_info = {
 	I2C_BOARD_INFO("max98088", 0x10),
 	.platform_data = &enterprise_max98088_pdata,
@@ -407,11 +413,6 @@ static struct i2c_board_info __initdata enterprise_codec_aic325x_info = {
 	I2C_BOARD_INFO("tlv320aic325x", 0x18),
 	.platform_data = &aic3256_codec_pdata,
 	.irq = TEGRA_GPIO_CDC_IRQ_N,
-};
-
-static struct i2c_board_info __initdata nfc_board_info = {
-	I2C_BOARD_INFO("pn544", 0x28),
-	.platform_data = &nfc_pdata,
 };
 
 static void enterprise_i2c_init(void)
@@ -430,8 +431,7 @@ static void enterprise_i2c_init(void)
 
 	i2c_register_board_info(0, &max98088_board_info, 1);
 	i2c_register_board_info(0, &enterprise_codec_aic325x_info, 1);
-	nfc_board_info.irq = gpio_to_irq(TEGRA_GPIO_PS4);
-	i2c_register_board_info(0, &nfc_board_info, 1);
+	i2c_register_board_info(0, &enterprise_bcm2079x_info, 1);
 }
 
 static struct platform_device *enterprise_uart_devices[] __initdata = {
@@ -653,50 +653,17 @@ static struct platform_device *enterprise_devices[] __initdata = {
 	static const struct i2c_board_info ft5x06_i2c_touch_info[] = {
 		{
 			I2C_BOARD_INFO("ft5x06", 0x38),
-			.irq = TEGRA_GPIO_TS_IRQ_N,
+			.irq		= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PZ3),
 			.platform_data = &ft_platform_data,
 		},
 	};
 	
 	static int __init enterprise_ft5x06_touch_init(void)
 	{
-	int ret;
-	ret = gpio_request(TEGRA_GPIO_PZ3, "ft5x06-1");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_input(TEGRA_GPIO_PZ3);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_PZ3);
-		return ret;
-	}
-	ret = gpio_request(TEGRA_GPIO_TP_VDD_EN, "ft5x06-2");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_output(TEGRA_GPIO_TP_VDD_EN, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_TP_VDD_EN);
-		return ret;
-	}
-	ret = gpio_request(TEGRA_GPIO_TS_WAKE, "ft5x06-3");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_direction_output(TEGRA_GPIO_TS_WAKE, 0);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_ouput failed %d\n",
-			__func__, ret);
-		gpio_free(TEGRA_GPIO_TS_WAKE);
-		return ret;
-	}
+		tegra_gpio_enable(TEGRA_GPIO_PZ3);
+		tegra_gpio_enable(TEGRA_GPIO_TP_VDD_EN);
+		tegra_gpio_enable(TEGRA_GPIO_TS_WAKE);
+	
 		//gpio_request(TEGRA_GPIO_TS_WAKE, "tp_wake");
 		gpio_direction_output(TEGRA_GPIO_TS_WAKE, 1);
 		msleep(20);
@@ -996,18 +963,6 @@ static void enterprise_baseband_init(void)
 #endif
 	}
 }
-static void enterprise_nfc_init(void)
-{
-	struct board_info bi;
-
-	/* Enable firmware GPIO PX7 for board E1205 */
-	tegra_get_board_info(&bi);
-	if (bi.board_id == BOARD_E1205 && bi.fab >= BOARD_FAB_A03) {
-		nfc_pdata.firm_gpio = TEGRA_GPIO_PX7;
-	} else if (bi.board_id == BOARD_E1239) {
-		nfc_pdata.firm_gpio = TEGRA_GPIO_PN6;
-	}
-}
 
 static void __init tegra_enterprise_init(void)
 {
@@ -1041,7 +996,6 @@ static void __init tegra_enterprise_init(void)
 	enterprise_edp_init();
 #endif
 	enterprise_kbc_init();
-	enterprise_nfc_init();
 #ifdef CONFIG_TOUCHSCREEN_FT5X06
 	enterprise_ft5x06_touch_init();
 #endif
