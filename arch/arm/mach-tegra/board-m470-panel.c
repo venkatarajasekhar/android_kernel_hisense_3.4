@@ -46,39 +46,17 @@
 #include "tegra3_host1x_devices.h"
 
 //for m470
-#define enterprise_en_lcd_1v8	TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
-#define enterprise_en_lcd_3v3	TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
-#define enterprise_lvds_shtdn_n	TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
-#define enterprise_en_vdd_pnl	TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
+#define enterprise_en_lcd_1v8		TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
+#define enterprise_en_lcd_3v3		TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
+#define enterprise_lvds_shtdn_n		TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
+#define enterprise_en_vdd_pnl		TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
 #define enterprise_lcd_bl_en		TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
-#define enterprise_lcd_bl_pwm	TEGRA_GPIO_BL_PWM
+#define enterprise_lcd_bl_pwm		TEGRA_GPIO_BL_PWM
 #define enterprise_en_vdd_bl		TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
-#define enterprise_hdmi_hpd		TEGRA_GPIO_HDMI_HPD		//TEGRA_GPIO_PN7
+#define enterprise_hdmi_hpd		TEGRA_GPIO_HDMI_HPD	//TEGRA_GPIO_PN7
 
 /* default brightness, heqi */
 #define DEFAULT_BRIGHTNESS		66
-
-#define DC_CTRL_MODE    TEGRA_DC_OUT_ONE_SHOT_MODE
-
-/* Select panel to be used. */
-#define AVDD_LCD PMU_TCA6416_GPIO_PORT17
-
-#define enterprise_lvds_shutdown	TEGRA_GPIO_PL2
-//#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
-
-#define enterprise_dsi_panel_reset	TEGRA_GPIO_PW0
-
-#define enterprise_lcd_2d_3d		TEGRA_GPIO_PH1
-#define ENTERPRISE_STEREO_3D		0
-#define ENTERPRISE_STEREO_2D		1
-
-#define enterprise_lcd_swp_pl		TEGRA_GPIO_PH2
-#define ENTERPRISE_STEREO_LANDSCAPE	0
-#define ENTERPRISE_STEREO_PORTRAIT	1
-
-#define enterprise_lcd_te		TEGRA_GPIO_PJ1
-
-#define enterprise_bl_pwm		TEGRA_GPIO_PH3
 
 #ifdef CONFIG_TEGRA_DC
 static struct regulator *enterprise_dsi_reg;
@@ -93,41 +71,6 @@ static struct regulator *enterprise_hdmi_vddio;
 static atomic_t sd_brightness = ATOMIC_INIT(255);
 struct clk *disp1_emc_min_clk;
 static struct tegra_dc_platform_data enterprise_disp1_pdata;
-
-static tegra_dc_bl_output enterprise_bl_output_measured_a02 = {
-	1, 5, 9, 10, 11, 12, 12, 13,
-	13, 14, 14, 15, 15, 16, 16, 17,
-	17, 18, 18, 19, 19, 20, 21, 21,
-	22, 22, 23, 24, 24, 25, 26, 26,
-	27, 27, 28, 29, 29, 31, 31, 32,
-	32, 33, 34, 35, 36, 36, 37, 38,
-	39, 39, 40, 41, 41, 42, 43, 43,
-	44, 45, 45, 46, 47, 47, 48, 49,
-	49, 50, 51, 51, 52, 53, 53, 54,
-	55, 56, 56, 57, 58, 59, 60, 61,
-	61, 62, 63, 64, 65, 65, 66, 67,
-	67, 68, 69, 69, 70, 71, 71, 72,
-	73, 73, 74, 74, 75, 76, 76, 77,
-	77, 78, 79, 79, 80, 81, 82, 83,
-	83, 84, 85, 85, 86, 86, 88, 89,
-	90, 91, 91, 92, 93, 93, 94, 95,
-	95, 96, 97, 97, 98, 99, 99, 100,
-	101, 101, 102, 103, 103, 104, 105, 105,
-	107, 107, 108, 109, 110, 111, 111, 112,
-	113, 113, 114, 115, 115, 116, 117, 117,
-	118, 119, 119, 120, 121, 122, 123, 124,
-	124, 125, 126, 126, 127, 128, 129, 129,
-	130, 131, 131, 132, 133, 133, 134, 135,
-	135, 136, 137, 137, 138, 139, 139, 140,
-	142, 142, 143, 144, 145, 146, 147, 147,
-	148, 149, 149, 150, 151, 152, 153, 153,
-	153, 154, 155, 156, 157, 158, 158, 159,
-	160, 161, 162, 163, 163, 164, 165, 165,
-	166, 166, 167, 168, 169, 169, 170, 170,
-	171, 172, 173, 173, 174, 175, 175, 176,
-	176, 178, 178, 179, 180, 181, 182, 182,
-	183, 184, 185, 186, 186, 187, 188, 188
-};
 
 static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
 	0, 1, 2, 3, 4, 5, 6, 7,
@@ -625,25 +568,6 @@ static int enterprise_panel_disable(void)
 	return ret;
 }
 
-static int enterprise_dsi_panel_enable(struct device *dev)
-{
-	int ret;
-	struct board_info board_info;
-
-	tegra_get_board_info(&board_info);
-
-	ret = avdd_dsi_csi_rail_enable();
-	if (ret)
-	return ret;
-}
-
-static int enterprise_dsi_panel_disable(void)
-{
-	if (enterprise_lcd_reg != NULL)
-		regulator_disable(enterprise_lcd_reg);
-	return 0;
-}
-
 /* heqi add */
 static void enterprise_panel_bl_shutdown(void)
 {
@@ -660,30 +584,6 @@ static void enterprise_panel_bl_shutdown(void)
 }
 #endif //config_tegra_dc
 
-static void enterprise_stereo_set_mode(int mode)
-{
-	switch (mode) {
-	case TEGRA_DC_STEREO_MODE_2D:
-		gpio_set_value(TEGRA_GPIO_PH1, ENTERPRISE_STEREO_2D);
-		break;
-	case TEGRA_DC_STEREO_MODE_3D:
-		gpio_set_value(TEGRA_GPIO_PH1, ENTERPRISE_STEREO_3D);
-		break;
-	}
-}
-
-static void enterprise_stereo_set_orientation(int mode)
-{
-	switch (mode) {
-	case TEGRA_DC_STEREO_LANDSCAPE:
-		gpio_set_value(TEGRA_GPIO_PH2, ENTERPRISE_STEREO_LANDSCAPE);
-		break;
-	case TEGRA_DC_STEREO_PORTRAIT:
-		gpio_set_value(TEGRA_GPIO_PH2, ENTERPRISE_STEREO_PORTRAIT);
-		break;
-	}
-}
-
 #ifdef CONFIG_TEGRA_DC
 static int enterprise_dsi_panel_postsuspend(void)
 {
@@ -695,9 +595,6 @@ static int enterprise_dsi_panel_postsuspend(void)
 static struct tegra_dsi_cmd dsi_init_cmd[]= {
 	DSI_CMD_SHORT(0x05, 0x11, 0x00),
 	DSI_DLY_MS(20),
-#if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	DSI_CMD_SHORT(0x15, 0x35, 0x00),
-#endif
 	DSI_CMD_SHORT(0x05, 0x29, 0x00),
 	DSI_DLY_MS(20),
 };
@@ -705,15 +602,9 @@ static struct tegra_dsi_cmd dsi_init_cmd[]= {
 static struct tegra_dsi_cmd dsi_early_suspend_cmd[] = {
 	DSI_CMD_SHORT(0x05, 0x28, 0x00),
 	DSI_DLY_MS(20),
-#if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	DSI_CMD_SHORT(0x05, 0x34, 0x00),
-#endif
 };
 
 static struct tegra_dsi_cmd dsi_late_resume_cmd[] = {
-#if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	DSI_CMD_SHORT(0x15, 0x35, 0x00),
-#endif
 	DSI_CMD_SHORT(0x05, 0x29, 0x00),
 	DSI_DLY_MS(20),
 };
@@ -721,9 +612,6 @@ static struct tegra_dsi_cmd dsi_late_resume_cmd[] = {
 static struct tegra_dsi_cmd dsi_suspend_cmd[] = {
 	DSI_CMD_SHORT(0x05, 0x28, 0x00),
 	DSI_DLY_MS(20),
-#if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	DSI_CMD_SHORT(0x05, 0x34, 0x00),
-#endif
 	DSI_CMD_SHORT(0x05, 0x10, 0x00),
 	DSI_DLY_MS(5),
 };
@@ -731,21 +619,7 @@ static struct tegra_dsi_cmd dsi_suspend_cmd[] = {
 struct tegra_dsi_out enterprise_dsi = {
 	.n_data_lanes = 2,
 	.pixel_format = TEGRA_DSI_PIXEL_FORMAT_24BIT_P,
-#if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	/* For one-shot mode, actual refresh rate is decided by the
-	 * frequency of TE signal. Although the frequency of TE is
-	 * expected running at rated_refresh_rate (typically 60Hz),
-	 * it may vary. Mismatch between freq of DC and TE signal
-	 * would cause frame drop. We increase refresh_rate to the
-	 * value larger than maximum TE frequency to avoid missing
-	 * any TE signal. The value of refresh_rate is also used to
-	 * calculate the pixel clock.
-	 */
-	.refresh_rate = 66,
-	.rated_refresh_rate = 60,
-#else
 	.refresh_rate = 60,
-#endif
 	.virtual_channel = TEGRA_DSI_VIRTUAL_CHANNEL_0,
 
 	.panel_has_frame_buffer = true,
@@ -769,11 +643,6 @@ struct tegra_dsi_out enterprise_dsi = {
 
 	/* TODO: Get the vender recommended freq */
 	.lp_read_cmd_mode_freq_khz = 200000,
-};
-
-static struct tegra_stereo_out enterprise_stereo = {
-	.set_mode		= &enterprise_stereo_set_mode,
-	.set_orientation	= &enterprise_stereo_set_orientation,
 };
 
 #ifdef CONFIG_TEGRA_DC
@@ -915,7 +784,6 @@ int __init enterprise_panel_init(void)
 	tegra_get_board_info(&board_info);
 
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
-	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
 
 	bl_output = enterprise_bl_output_measured_a03;
 
@@ -936,69 +804,6 @@ int __init enterprise_panel_init(void)
 		gpio_free(enterprise_hdmi_hpd);
 		return err;
 	}
-
-	if (board_info.board_id != BOARD_E1239) {
-		err = gpio_request(enterprise_lcd_2d_3d, "lcd_2d_3d");
-		if (err < 0) {
-			pr_err("%s: gpio_request failed %d\n", __func__, err);
-			return err;
-		}
-		err = gpio_direction_output(enterprise_lcd_2d_3d, 0);
-		if (err < 0) {
-			pr_err("%s: gpio_direction_ouput failed %d\n",
-				__func__, err);
-			gpio_free(enterprise_lcd_2d_3d);
-			return err;
-		}
-		enterprise_stereo_set_mode(enterprise_stereo.mode_2d_3d);
-
-		err = gpio_request(enterprise_lcd_swp_pl, "lcd_swp_pl");
-		if (err < 0) {
-			pr_err("%s: gpio_request failed %d\n", __func__, err);
-			return err;
-		}
-		err = gpio_direction_output(enterprise_lcd_swp_pl, 0);
-		if (err < 0) {
-			pr_err("%s: gpio_direction_ouput failed %d\n",
-				__func__, err);
-			gpio_free(enterprise_lcd_swp_pl);
-			return err;
-		}
-		enterprise_stereo_set_orientation(
-						enterprise_stereo.orientation);
-#if IS_EXTERNAL_PWM
-		err = gpio_request(enterprise_bl_pwm, "bl_pwm");
-		if (err < 0) {
-			pr_err("%s: gpio_request failed %d\n", __func__, err);
-			return err;
-		}
-		gpio_free(enterprise_bl_pwm);
-#endif
-	} else {
-		/* External pwm is used but do not use IS_EXTERNAL_PWM
-		compiler switch for TAI */
-		err = gpio_request(enterprise_bl_pwm, "bl_pwm");
-		if (err < 0) {
-			pr_err("%s: gpio_request failed %d\n", __func__, err);
-			return err;
-		}
-		gpio_free(enterprise_bl_pwm);
-	}
-
-#if !(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	err = gpio_request(enterprise_lcd_swp_pl, "lcd_te");
-	if (err < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, err);
-		return err;
-	}
-	err = gpio_direction_input(enterprise_lcd_te);
-	if (err < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n",
-			__func__, err);
-		gpio_free(enterprise_lcd_te);
-		return err;
-	}
-#endif
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
 
