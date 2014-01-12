@@ -23,22 +23,24 @@
 #include <linux/err.h>
 #include <linux/mmc/host.h>
 #include <linux/wl12xx.h>
+#include <linux/fs.h>
+#include <linux/random.h>
 
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/gpio-tegra.h>
 #include <mach/io_dpd.h>
 
 #include "gpio-names.h"
 #include "board.h"
+#include "board-enterprise.h"
 
 
-#define ENTERPRISE_WLAN_PWR	TEGRA_GPIO_PV2
-#define ENTERPRISE_WLAN_RST	TEGRA_GPIO_PV3
-#define ENTERPRISE_WLAN_WOW	TEGRA_GPIO_PU6
+#define ENTERPRISE_WLAN_PWR	TEGRA_GPIO_WLAN_RST_N
+#define ENTERPRISE_WLAN_WOW	TEGRA_GPIO_WLAN_HOST_WAKE
 #define ENTERPRISE_SD_CD TEGRA_GPIO_PI5
+#define MAC_ADDR_LEN		6
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
@@ -47,14 +49,20 @@ static int enterprise_wifi_status_register(void (*callback)(int , void *), void 
 static int enterprise_wifi_reset(int on);
 static int enterprise_wifi_power(int on);
 static int enterprise_wifi_set_carddetect(int val);
+static int enterprise_wifi_get_mac_addr(unsigned char *buf);
+extern unsigned int his_hw_ver;
+extern unsigned int his_board_version;
+extern char his_wifi_addr[18];
 
 static struct wifi_platform_data enterprise_wifi_control = {
 	.set_power      = enterprise_wifi_power,
 	.set_reset      = enterprise_wifi_reset,
 	.set_carddetect = enterprise_wifi_set_carddetect,
+	.get_mac_addr = enterprise_wifi_get_mac_addr,
 };
 
 static struct wl12xx_platform_data enterprise_wl12xx_wlan_data __initdata = {
+	.irq = TEGRA_GPIO_TO_IRQ(ENTERPRISE_WLAN_WOW),
 	.board_ref_clock = WL12XX_REFCLOCK_26,
 	.board_tcxo_clock = 1,
 	.set_power = enterprise_wifi_power,
@@ -64,6 +72,8 @@ static struct wl12xx_platform_data enterprise_wl12xx_wlan_data __initdata = {
 static struct resource wifi_resource[] = {
 	[0] = {
 		.name	= "bcm4329_wlan_irq",
+		.start	= TEGRA_GPIO_TO_IRQ(ENTERPRISE_WLAN_WOW),
+		.end	= TEGRA_GPIO_TO_IRQ(ENTERPRISE_WLAN_WOW),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
 	},
 };
@@ -118,7 +128,7 @@ static struct resource sdhci_resource3[] = {
 };
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
-static struct embedded_sdio_data embedded_sdio_data0 = {
+static struct embedded_sdio_data embedded_sdio_data2 = {
 	.cccr   = {
 		.sdio_vsn       = 2,
 		.multi_block    = 1,
@@ -129,16 +139,16 @@ static struct embedded_sdio_data embedded_sdio_data0 = {
 	},
 	.cis  = {
 		.vendor         = 0x02d0,
-		.device         = 0x4329,
+		.device         = 0x4330,
 	},
 };
 #endif
 
-static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
+static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 	.mmc_data = {
 		.register_status_notify	= enterprise_wifi_status_register,
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
-		.embedded_sdio = &embedded_sdio_data0,
+		.embedded_sdio = &embedded_sdio_data2,
 #endif
 		/* FIXME need to revert the built_in change
 		once we use get the signal strength fix of
@@ -156,7 +166,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
 	.ddr_clk_limit = 41000000,
 };
 
-static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
+static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
 	.cd_gpio = -1,
 	.wp_gpio = -1,
 	.power_gpio = -1,
@@ -173,7 +183,6 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 	.ddr_clk_limit = 41000000,
 	.mmc_data = {
 		.built_in = 1,
-		.ocr_mask = MMC_OCR_1V8_MASK,
 	}
 };
 
@@ -230,7 +239,7 @@ static int enterprise_wifi_set_carddetect(int val)
 
 static int enterprise_wifi_power(int on)
 {
-	struct tegra_io_dpd *sd_dpd;
+	//struct tegra_io_dpd *sd_dpd;
 
 	pr_debug("%s: %d\n", __func__, on);
 
@@ -240,34 +249,40 @@ static int enterprise_wifi_power(int on)
 	 *
 	 * enterprise GPIO WLAN enable is part of SDMMC1 pin group
 	 */
-	sd_dpd = tegra_io_dpd_get(&tegra_sdhci_device0.dev);
-	if (sd_dpd) {
-		mutex_lock(&sd_dpd->delay_lock);
-		tegra_io_dpd_disable(sd_dpd);
-		mutex_unlock(&sd_dpd->delay_lock);
-	}
+	 if((his_board_version==0) || (his_board_version == 2) || (his_board_version == 3)){
+            struct tegra_io_dpd *sd_dpd;
+            sd_dpd = tegra_io_dpd_get(&tegra_sdhci_device2.dev);
+            if (sd_dpd) {
+                mutex_lock(&sd_dpd->delay_lock);
+                tegra_io_dpd_disable(sd_dpd);
+                mutex_unlock(&sd_dpd->delay_lock);
+            }
+	
+	
+            if (on) {
+            	gpio_set_value(ENTERPRISE_WLAN_PWR, 1);
+            	mdelay(200);
+            } else {
+            	gpio_set_value(ENTERPRISE_WLAN_PWR, 0);
+            }
 
-	if (on) {
-		gpio_set_value(ENTERPRISE_WLAN_RST, 1);
-		mdelay(100);
-		gpio_set_value(ENTERPRISE_WLAN_RST, 0);
-		mdelay(100);
-		gpio_set_value(ENTERPRISE_WLAN_RST, 1);
-		mdelay(100);
-		gpio_set_value(ENTERPRISE_WLAN_PWR, 1);
-		mdelay(200);
-	} else {
-		gpio_set_value(ENTERPRISE_WLAN_RST, 0);
-		mdelay(100);
-		gpio_set_value(ENTERPRISE_WLAN_PWR, 0);
-	}
+	
+            if (sd_dpd) {
+                mutex_lock(&sd_dpd->delay_lock);
+                tegra_io_dpd_enable(sd_dpd);
+                mutex_unlock(&sd_dpd->delay_lock);
+            }
+	
+ 	}
+	 else{
+		 if (on) {
+				 gpio_set_value(ENTERPRISE_WLAN_PWR, 1);
+				 mdelay(200);
+			 } else {
+				 gpio_set_value(ENTERPRISE_WLAN_PWR, 0);
+			 }
 
-	if (sd_dpd) {
-		mutex_lock(&sd_dpd->delay_lock);
-		tegra_io_dpd_enable(sd_dpd);
-		mutex_unlock(&sd_dpd->delay_lock);
-	}
-
+	 }
 	return 0;
 }
 
@@ -277,11 +292,85 @@ static int enterprise_wifi_reset(int on)
 	return 0;
 }
 
+static int enterprise_wifi_get_mac_addr(unsigned char *buf)
+{
+	//struct file *filp=NULL;
+	//struct inode *inode;
+	//unsigned long magic;
+	//off_t fsize;
+	//loff_t pos = 0;
+	//ssize_t retValue = 0;
+	char readbuf[18];
+	char tmp[MAC_ADDR_LEN*2];
+	//mm_segment_t old_fs;
+	//int sz;
+	int i, ii=0;
+	char mac_valid;
+	uint rand_mac;
+	//char iovbuf[MAC_ADDR_LEN];
+	//printk("liuqiang : custom mac addr %s \n",his_wifi_addr);
+
+
+	memcpy(readbuf,his_wifi_addr,18);
+
+	for(i = 0; i < (MAC_ADDR_LEN*2+5); i++){
+		if(readbuf[i] == ':')
+			continue;
+		else if((readbuf[i] >= 48)&&(readbuf[i] <= 57))
+			readbuf[i] -= 48;
+		else if((readbuf[i] >= 65)&&(readbuf[i] <= 70))
+			readbuf[i] -= 55;
+		else
+			goto macerr;
+		tmp[ii] = readbuf[i];
+		ii++;
+	}
+
+	mac_valid = 0;
+
+	for(i = 0; i <MAC_ADDR_LEN; i++){
+		buf[i] = ((tmp[i*2] << 4) | tmp[i*2+1]);
+		mac_valid |= buf[i];
+		//printk("buf[%d]=0x%02x\n", i, buf[i]);
+	}
+
+	if((!mac_valid)||((buf[0] == 0xFE)&&(buf[1] == 0xFF)&&(buf[2] == 0xFE)&&
+					  (buf[3] == 0xFF)&&(buf[4] == 0xFE)&&(buf[5] == 0xFF)))
+		goto macerr;
+	else
+		goto exit;
+
+macerr:
+	/* Generate random MAC address */
+	printk("[DHD]: MAC is invalid, use random MAC address!\n");
+
+	srandom32((uint)jiffies);
+	rand_mac = random32();
+	buf[0] = 0x00;
+	buf[1] = 0x34;
+	buf[2] = 0x9a;
+	buf[3] = (unsigned char)(rand_mac & 0x0F) | 0xF0;
+	buf[4] = (unsigned char)(rand_mac >> 8);
+	buf[5] = (unsigned char)(rand_mac >> 16);
+
+	//for(i = 0; i <MAC_ADDR_LEN; i++){
+ 	//	printk("buf[%d]=0x%02x\n", i, buf[i]);
+ 	//}
+
+
+ exit:
+ 	/* close file before return */
+	//filp_close(filp, current->files);
+ 	/* restore previous address limit */
+	//set_fs(old_fs);
+ 
+ 	return 0;
+}
 #ifdef CONFIG_TEGRA_PREPOWER_WIFI
 static int __init enterprise_wifi_prepower(void)
 {
-	if ((!machine_is_tegra_enterprise()) && (!machine_is_tai()))
-		return 0;
+	//if ((!machine_is_tegra_enterprise()) && (!machine_is_tai()))
+	//	return 0;
 
 	enterprise_wifi_power(1);
 
@@ -293,37 +382,10 @@ subsys_initcall_sync(enterprise_wifi_prepower);
 
 static int __init enterprise_wifi_init(void)
 {
-	int rc;
-
-	rc = gpio_request(ENTERPRISE_WLAN_PWR, "wlan_power");
-	if (rc)
-		pr_err("WLAN_PWR gpio request failed:%d\n", rc);
-	rc = gpio_request(ENTERPRISE_WLAN_RST, "wlan_rst");
-	if (rc)
-		pr_err("WLAN_RST gpio request failed:%d\n", rc);
-	rc = gpio_request(ENTERPRISE_WLAN_WOW, "bcmsdh_sdmmc");
-	if (rc)
-		pr_err("WLAN_WOW gpio request failed:%d\n", rc);
-
-	rc = gpio_direction_output(ENTERPRISE_WLAN_PWR, 0);
-	if (rc)
-		pr_err("WLAN_PWR gpio direction configuration failed:%d\n", rc);
-	gpio_direction_output(ENTERPRISE_WLAN_RST, 0);
-	if (rc)
-		pr_err("WLAN_RST gpio direction configuration failed:%d\n", rc);
-	rc = gpio_direction_input(ENTERPRISE_WLAN_WOW);
-	if (rc)
-		pr_err("WLAN_WOW gpio direction configuration failed:%d\n", rc);
-
-	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX) {
-		enterprise_wl12xx_wlan_data.irq = gpio_to_irq(TEGRA_GPIO_PU6);
+	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX)
 		wl12xx_set_platform_data(&enterprise_wl12xx_wlan_data);
-	}
-	else {
-		wifi_resource[0].start = wifi_resource[0].end =
-		gpio_to_irq(TEGRA_GPIO_PU6);
+	else
 		platform_device_register(&enterprise_brcm_wifi_device);
-	}
 
 	return 0;
 }
@@ -332,17 +394,17 @@ int __init enterprise_sdhci_init(void)
 {
 	platform_device_register(&tegra_sdhci_device3);
 
-	tegra_sdhci_platform_data2.cd_gpio = ENTERPRISE_SD_CD;
-	platform_device_register(&tegra_sdhci_device2);
+	tegra_sdhci_platform_data0.cd_gpio = ENTERPRISE_SD_CD;
+	platform_device_register(&tegra_sdhci_device0);
 
 	/* TI wifi module does not use emdedded sdio */
 	if (tegra_get_commchip_id() == COMMCHIP_TI_WL18XX) {
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
-		tegra_sdhci_platform_data0.mmc_data.embedded_sdio = NULL;
+		tegra_sdhci_platform_data2.mmc_data.embedded_sdio = NULL;
 #endif
 	}
 
-	platform_device_register(&tegra_sdhci_device0);
+	platform_device_register(&tegra_sdhci_device2);
 	enterprise_wifi_init();
 	return 0;
 }
