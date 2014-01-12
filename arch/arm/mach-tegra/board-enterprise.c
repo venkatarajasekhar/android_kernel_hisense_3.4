@@ -886,6 +886,21 @@ static struct i2c_board_info   __initdata gen2_i2c_bq27541[] = {
 };
 #endif
 
+/*
+** Enable pwm clock, heqi add
+*/
+static void __init tegra_enterprise_pwm_clk_init(void)
+{
+	struct clk *c;
+	int ret = 0;
+
+	c = tegra_get_clock_by_name(enterprise_clk_init_table[3].name);
+
+	ret = clk_enable(c);
+	if (ret) 
+		pr_warning("Unable to enable clock %s: %d\n", enterprise_clk_init_table[3].name, ret);
+}
+
 static void enterprise_usb_init(void)
 {
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
@@ -1006,6 +1021,7 @@ static void __init tegra_enterprise_init(void)
 		tegra_clk_init_from_table(enterprise_clk_i2s2_table);
 
 	tegra_clk_init_from_table(enterprise_clk_init_table);
+	tegra_enterprise_pwm_clk_init();
 	tegra_enable_pinmux();
 	tegra_smmu_init();
 	tegra_soc_device_init("tegra_enterprise");
