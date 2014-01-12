@@ -33,49 +33,37 @@
 #include <linux/gpio.h>
 
 #include <linux/mfd/tlv320aic3xxx-core.h>
-#include <linux/mfd/tlv320aic3262-registers.h>
-
-struct aic3262_gpio {
+#include <linux/mfd/tlv320aic3256-registers.h>
+#include "../arch/arm/mach-tegra/board-enterprise.h"
+#include "../arch/arm/mach-tegra/gpio-names.h"
+extern int eq_status;
+extern int his_hpdet;
+struct aic3256_gpio {
 	unsigned int reg;
 	u8 mask;
 	u8 shift;
 };
-struct aic3262_gpio aic3262_gpio_control[] = {
+#if 1
+struct aic3256_gpio aic3256_gpio_control[] = {
 	{
-	 .reg = AIC3262_GPIO1_IO_CNTL,
-	 .mask = AIC3262_GPIO_D6_D2,
-	 .shift = AIC3262_GPIO_D2_SHIFT,
+	 .reg = AIC3256_GPIO_CTRL,
+	 .mask = AIC3256_GPIO_MFP5_D5_D2,
+	 .shift = AIC3256_GPIO_MFP5_D2_SHIFT,
 	 },
 	{
-	 .reg = AIC3262_GPIO2_IO_CNTL,
-	 .mask = AIC3262_GPIO_D6_D2,
-	 .shift = AIC3262_GPIO_D2_SHIFT,
+	
 	 },
 	{
-	 .reg = AIC3262_GPI1_EN,
-	 .mask = AIC3262_GPI1_D2_D1,
-	 .shift = AIC3262_GPIO_D1_SHIFT,
+
 	 },
 	{
-	 .reg = AIC3262_GPI2_EN,
-	 .mask = AIC3262_GPI2_D5_D4,
-	 .shift = AIC3262_GPIO_D4_SHIFT,
+	 
 	 },
 	{
-	 .reg = AIC3262_GPO1_OUT_CNTL,
-	 .mask = AIC3262_GPO1_D4_D1,
-	 .shift = AIC3262_GPIO_D1_SHIFT,
+	
 	 },
 };
-
-/*Codec read count limit once*/
-#define CODEC_BULK_READ_MAX 128
-/*Ap read conut limit once*/
-#define CODEC_BULK_READ_LIMIT 63
-
-#define CHECK_AIC3xxx_I2C_SHUTDOWN(a) { if (a && a->shutdown_complete) { \
-dev_err(a->dev, "error: i2c state is 'shutdown'\n"); return -ENODEV; } }
-
+#endif
 int set_aic3xxx_book(struct aic3xxx *aic3xxx, int book)
 {
 	int ret = 0;
@@ -87,6 +75,7 @@ int set_aic3xxx_book(struct aic3xxx *aic3xxx, int book)
 	if (ret < 0)
 		return ret;
 	book_buf[1] = book;
+
 	ret = regmap_write(aic3xxx->regmap, book_buf[0], book_buf[1]);
 
 	if (ret < 0)
@@ -128,7 +117,6 @@ int aic3xxx_reg_read(struct aic3xxx *aic3xxx, unsigned int reg)
 	offset = aic_reg->aic3xxx_register.offset;
 
 	mutex_lock(&aic3xxx->io_lock);
-	CHECK_AIC3xxx_I2C_SHUTDOWN(aic3xxx)
 	if (aic3xxx->book_no != book) {
 		ret = set_aic3xxx_book(aic3xxx, book);
 		if (ret < 0) {
@@ -166,19 +154,14 @@ int aic3xxx_bulk_read(struct aic3xxx *aic3xxx, unsigned int reg,
 		      int count, u8 *buf)
 {
 	int ret;
-	int count_temp = count;
 	union aic3xxx_reg_union *aic_reg = (union aic3xxx_reg_union *) &reg;
 	u8 book, page, offset;
-
-	if (count > CODEC_BULK_READ_MAX)
-		return -1;
 
 	page = aic_reg->aic3xxx_register.page;
 	book = aic_reg->aic3xxx_register.book;
 	offset = aic_reg->aic3xxx_register.offset;
 
 	mutex_lock(&aic3xxx->io_lock);
-	CHECK_AIC3xxx_I2C_SHUTDOWN(aic3xxx)
 	if (aic3xxx->book_no != book) {
 		ret = set_aic3xxx_book(aic3xxx, book);
 		if (ret < 0) {
@@ -194,27 +177,28 @@ int aic3xxx_bulk_read(struct aic3xxx *aic3xxx, unsigned int reg,
 			return ret;
 		}
 	}
-
-	while (count_temp) {
-		if (count_temp > CODEC_BULK_READ_LIMIT) {
-			ret = regmap_bulk_read(aic3xxx->regmap, offset,
-			buf, CODEC_BULK_READ_LIMIT);
-			offset += CODEC_BULK_READ_LIMIT;
-			buf += CODEC_BULK_READ_LIMIT;
-			count_temp -= CODEC_BULK_READ_LIMIT;
-		} else {
-			ret = regmap_bulk_read(aic3xxx->regmap, offset,
-			buf, count_temp);
-			offset += count_temp;
-			buf += count_temp;
-			count_temp -= count_temp;
-		}
-	}
-
+	ret = regmap_bulk_read(aic3xxx->regmap, offset, buf, count);
 	mutex_unlock(&aic3xxx->io_lock);
 		return ret;
 }
 EXPORT_SYMBOL_GPL(aic3xxx_bulk_read);
+
+void aic3xxx_spkctl_work(struct work_struct *work)
+{
+	//printk("***************%s eq_status = %d\n",__func__,eq_status);
+	if(eq_status){
+		if(gpio_get_value(TEGRA_GPIO_EN_CODEC_PA) == 0 ){
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  1);
+			udelay(5);
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  0);
+			udelay(5);
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  1);
+			}
+	}
+		
+}
+EXPORT_SYMBOL_GPL(aic3xxx_spkctl_work);
+
 
 /**
  * aic3xxx_reg_write: Write a single TLV320AIC3262 register.
@@ -234,8 +218,12 @@ int aic3xxx_reg_write(struct aic3xxx *aic3xxx, unsigned int reg,
 	book = aic_reg->aic3xxx_register.book;
 	offset = aic_reg->aic3xxx_register.offset;
 
+	
+//	printk("yang-codec:  p %d, w 30 %x %x\n",
+//		aic_reg->aic3xxx_register.page,
+//		aic_reg->aic3xxx_register.offset, val);
+
 	mutex_lock(&aic3xxx->io_lock);
-	CHECK_AIC3xxx_I2C_SHUTDOWN(aic3xxx)
 	if (book != aic3xxx->book_no) {
 		ret = set_aic3xxx_book(aic3xxx, book);
 		if (ret < 0) {
@@ -250,7 +238,40 @@ int aic3xxx_reg_write(struct aic3xxx *aic3xxx, unsigned int reg,
 			return ret;
 		}
 	}
+#if 1	
+		if((reg == AIC3256_DAC_CHN_REG) && (val & 0xc0)){
+			printk("DAC power up, val = %x\n", val);
+			if(gpio_get_value(TEGRA_GPIO_EN_CODEC_PA))
+				gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  0);
+		}
+		else if((reg == AIC3256_OUT_PWR_CTRL) && (val & 0x0c))
+		{
+		    gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  0);
+			printk("operator,  open lol, lol = %x\n", val);
+			queue_delayed_work(aic3xxx->spkctl_workqueue, &aic3xxx->spkctl_delayed_work,
+					   msecs_to_jiffies(100));
+
+			//val = val |  0x0C;
+			
+			//printk("power up lol,  lol = %x\n", val);
+		}else if((reg == AIC3256_OUT_PWR_CTRL) && !(val & 0x0C))
+		{
+			printk("*************yang close spk in core.c\n");
+		    gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  0);
+		}
+		
+#endif	
 	ret = regmap_write(aic3xxx->regmap, offset, val);
+	if((reg == AIC3256_OUT_PWR_CTRL) && (val & 0x0c) &&(ret == 0)){
+		//printk("@@@@@ ret = %d eq_status = %d\n",ret,eq_status);
+		if(eq_status){
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  1);
+			udelay(5);
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  0);
+			udelay(5);
+			gpio_direction_output(TEGRA_GPIO_EN_CODEC_PA,  1);
+			}
+		}
 	mutex_unlock(&aic3xxx->io_lock);
 	return ret;
 
@@ -271,13 +292,23 @@ int aic3xxx_bulk_write(struct aic3xxx *aic3xxx, unsigned int reg,
 	union aic3xxx_reg_union *aic_reg = (union aic3xxx_reg_union *) &reg;
 	int ret = 0;
 	u8 page, book, offset;
-
+//	int i;
+//printk("%s(%d): enter\n", __func__, __LINE__);
 	page = aic_reg->aic3xxx_register.page;
 	book = aic_reg->aic3xxx_register.book;
 	offset = aic_reg->aic3xxx_register.offset;
 
+//printk("reg = %x, count = %d\n", reg, count);
+/*
+         for(i = 0; i < count/aic3xxx->regmap->format.val_bytes; i++)	
+	{
+		printk("yang-bulk_write-codec:  p %d, w 30 %x %x\n",
+			aic_reg->aic3xxx_register.page,
+			aic_reg->aic3xxx_register.offset + i, buf);
+         	}
+         */
+		 
 	mutex_lock(&aic3xxx->io_lock);
-	CHECK_AIC3xxx_I2C_SHUTDOWN(aic3xxx)
 	if (book != aic3xxx->book_no) {
 		ret = set_aic3xxx_book(aic3xxx, book);
 		if (ret < 0) {
@@ -292,7 +323,10 @@ int aic3xxx_bulk_write(struct aic3xxx *aic3xxx, unsigned int reg,
 			return ret;
 		}
 	}
-	ret = regmap_raw_write(aic3xxx->regmap, offset, buf, count);
+	if(count < 2)
+		ret = regmap_raw_write(aic3xxx->regmap, offset, buf, count);
+	else 
+		ret = count;
 	mutex_unlock(&aic3xxx->io_lock);
 	return ret;
 }
@@ -318,7 +352,6 @@ int aic3xxx_set_bits(struct aic3xxx *aic3xxx, unsigned int reg,
 	offset = aic_reg->aic3xxx_register.offset;
 
 	mutex_lock(&aic3xxx->io_lock);
-	CHECK_AIC3xxx_I2C_SHUTDOWN(aic3xxx)
 	if (book != aic3xxx->book_no) {
 		ret = set_aic3xxx_book(aic3xxx, book);
 		if (ret < 0) {
@@ -365,11 +398,12 @@ int aic3xxx_wait_bits(struct aic3xxx *aic3xxx, unsigned int reg,
 	};
 	if (!counter)
 		dev_err(aic3xxx->dev,
-			"wait_bits timedout (%d millisecs). lastval 0x%x val 0x%x\n",
-			timeout, status, val);
+			"wait_bits timedout (%d millisecs). lastval 0x%x\n",
+			timeout, status);
 	return counter;
 }
 EXPORT_SYMBOL_GPL(aic3xxx_wait_bits);
+
 
 static struct mfd_cell aic3262_devs[] = {
 	{
@@ -385,6 +419,20 @@ static struct mfd_cell aic3285_devs[] = {
 	{ .name = "tlv320aic3285-extcon" },
 	{ .name = "tlv320aic3285-gpio" },
 };
+static struct mfd_cell aic3256_devs[] = {
+	{
+		.name = "tlv320aic325x-codec",
+/*		.num_resources = ARRAY_SIZE(aic3256_codec_resources),
+		.resources = aic3256_codec_resources,*/
+	},
+
+	{
+		.name = "tlv320aic3256-gpio",
+/*		.num_resources = ARRAY_SIZE(aic3256_gpio_resources),
+		.resources = aic3256_gpio_resources,
+		.pm_runtime_no_callbacks = true,*/
+	},
+};
 
 /**
  * Instantiate the generic non-control parts of the device.
@@ -395,12 +443,54 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 	const char *devname;
 	int ret, i;
 	u8 resetVal = 1;
-
+	unsigned int jackint =0,keyint = 0;
+	
 	dev_info(aic3xxx->dev, "aic3xxx_device_init beginning\n");
 
 	mutex_init(&aic3xxx->io_lock);
 	dev_set_drvdata(aic3xxx->dev, aic3xxx);
+	aic3xxx->irq_workqueue = create_singlethread_workqueue("aic325x-irq");
+	if (!aic3xxx->irq_workqueue) {
+		ret = -ENOMEM;
+		goto err_return;
+	}
+	INIT_DELAYED_WORK(&aic3xxx->irq_delayed_work, aic325x_irq_work);
 
+	aic3xxx->headsetin_workqueue = create_singlethread_workqueue("aic325x-headset-in");
+	if (!aic3xxx->headsetin_workqueue) {
+		ret = -ENOMEM;
+		goto err_return;
+	}
+	INIT_DELAYED_WORK(&aic3xxx->headsetin_delayed_work, aic325x_headsetin_work);
+
+	aic3xxx->headsetout_workqueue = create_singlethread_workqueue("aic325x-headset-out");
+	if (!aic3xxx->headsetout_workqueue) {
+		ret = -ENOMEM;
+		goto err_return;
+	}
+	INIT_DELAYED_WORK(&aic3xxx->headsetout_delayed_work, aic325x_headsetout_work);
+
+	aic3xxx->spkctl_workqueue = create_singlethread_workqueue("aic325x-spk-ctl");
+	if (!aic3xxx->spkctl_workqueue) {
+		ret = -ENOMEM;
+		goto err_return;
+	}
+	INIT_DELAYED_WORK(&aic3xxx->spkctl_delayed_work, aic3xxx_spkctl_work);
+	
+	aic3xxx->keypress_workqueue = create_singlethread_workqueue("aic325x-key-press");
+	if (!aic3xxx->keypress_workqueue) {
+		ret = -ENOMEM;
+		goto err_return;
+	}
+	INIT_DELAYED_WORK(&aic3xxx->keypress_delayed_work, aic325x_keypress_work);
+	ret = aic3xxx_reg_write(aic3xxx, AIC3256_RESET, resetVal);
+	if (ret < 0) {
+		dev_err(aic3xxx->dev, "Could not write to AIC3262 register\n");
+		goto err_return;
+	}
+
+	mdelay(100);
+#if 0
 	if (!pdata)
 		return -EINVAL;
 
@@ -420,7 +510,7 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 	}
 
 	/* run the codec through software reset */
-	ret = aic3xxx_reg_write(aic3xxx, AIC3262_RESET_REG, resetVal);
+	ret = aic3xxx_reg_write(aic3xxx, AIC3256_RESET_REG, resetVal);
 	if (ret < 0) {
 		dev_err(aic3xxx->dev, "Could not write to AIC3262 register\n");
 		goto err_return;
@@ -433,14 +523,22 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 		dev_err(aic3xxx->dev, "Failed to read ID register\n");
 		goto err_return;
 	}
-
+#endif
+#if 0
+Aravindan
 	switch (ret) {
 	case 3:
-		devname = "TLV320AIC3262";
-		if (aic3xxx->type != TLV320AIC3262)
+#endif
+		devname = "TLV320AIC3256";
+#if 0
+Aravindan
+		if (aic3xxx->type != TLV320AIC3256)
 			dev_warn(aic3xxx->dev, "Device registered as type %d\n",
 				 aic3xxx->type);
-		aic3xxx->type = TLV320AIC3262;
+#endif
+		aic3xxx->type = TLV320AIC3256;
+#if 0
+Aravindan
 		break;
 	case 4:
 		devname = "TLV320AIC3285";
@@ -449,30 +547,49 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 				 aic3xxx->type);
 		aic3xxx->type = TLV320AIC3285;
 	default:
-		dev_err(aic3xxx->dev, "Device is not a TLV320AIC3262 type=%d",
-			ret);
+		dev_err(aic3xxx->dev, "Device is not a TLV320AIC3262");
 		ret = -EINVAL;
 		goto err_return;
 	}
-
+#endif
+	printk(" ______________________ his_hpdet = %d\n",his_hpdet);
+	if(his_hpdet){
+		//aic3xxx_reg_write(aic3xxx, AIC3256_MICBIAS_CTRL,0x20);
+		//aic3xxx_reg_write(aic3xxx, AIC3256_HEADSET_DETECT,0x83);
+	}
 	dev_info(aic3xxx->dev, "%s revision %c\n", devname, 'D' + ret);
-
+#if 1
 	/*If naudint is gpio convert it to irq number */
 	if (pdata->gpio_irq == 1) {
+		//printk("pdata-> naudint_irq = %d\n", pdata->naudint_irq);
 		aic3xxx->irq = gpio_to_irq(pdata->naudint_irq);
 		gpio_request(pdata->naudint_irq, "aic3xxx-gpio-irq");
 		gpio_direction_input(pdata->naudint_irq);
+		if(his_hpdet){
+			tegra_gpio_enable(pdata->jackint_irq);
+			jackint = gpio_to_irq(pdata->jackint_irq);
+			gpio_request(pdata->jackint_irq, "aic3xxx-jackgpio-irq");
+			gpio_direction_input(pdata->jackint_irq);
+			tegra_gpio_enable(pdata->keyint_irq);
+			keyint = gpio_to_irq(pdata->keyint_irq);
+			gpio_request(pdata->keyint_irq, "aic3xxx-keygpio-irq");
+			gpio_direction_input(pdata->keyint_irq);
+		}
 	} else
 		aic3xxx->irq = pdata->naudint_irq;
-
+	
+	if(his_hpdet){
+		aic3xxx->jack_irq = jackint;
+		aic3xxx->key_irq = keyint;
+	}
 	aic3xxx->irq_base = pdata->irq_base;
-	for (i = 0; i < AIC3262_NUM_GPIO; i++) {
+	for (i = 0; i < AIC3256_NUM_GPIO; i++) {
 		if (pdata->gpio[i].used) {
 			if (pdata->gpio[i].in) {
 				aic3xxx_set_bits(aic3xxx,
-						 aic3262_gpio_control[i].reg,
-						 aic3262_gpio_control[i].mask,
-						 0x1 << aic3262_gpio_control[i].
+						 aic3256_gpio_control[i].reg,
+						 aic3256_gpio_control[i].mask,
+						 0x1 << aic3256_gpio_control[i].
 						 shift);
 				if (pdata->gpio[i].in_reg) {
 					aic3xxx_set_bits(aic3xxx,
@@ -485,17 +602,14 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 				}
 			} else {
 				aic3xxx_set_bits(aic3xxx,
-						 aic3262_gpio_control[i].reg,
-						 aic3262_gpio_control[i].mask,
+						 aic3256_gpio_control[i].reg,
+						 aic3256_gpio_control[i].mask,
 						 pdata->gpio[i].
 						 value <<
-						 aic3262_gpio_control[i].shift);
+						 aic3256_gpio_control[i].shift);
 			}
-		} else
-			aic3xxx_set_bits(aic3xxx, aic3262_gpio_control[i].reg,
-					 aic3262_gpio_control[i].mask, 0x0);
+		}
 	}
-	aic3xxx->suspended = true;
 
 	/* codec interrupt */
 	if (aic3xxx->irq) {
@@ -503,6 +617,7 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 		if (ret < 0)
 			goto err_irq;
 	}
+#endif
 	switch (aic3xxx->type) {
 	case TLV320AIC3262:
 		ret = mfd_add_devices(aic3xxx->dev, -1,
@@ -515,9 +630,15 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 		break;
 	case TLV320AIC3266:
 		break;
+	case TLV320AIC3256:
+		ret = mfd_add_devices(aic3xxx->dev, -1,
+			      aic3256_devs, ARRAY_SIZE(aic3256_devs), NULL, 0);
+		break;
+
 
 	default:
 		dev_err(aic3xxx->dev, "unable to recognize codec\n");
+		break;
 	}
 	if (ret != 0) {
 		dev_err(aic3xxx->dev, "Failed to add children: %d\n", ret);
@@ -528,8 +649,9 @@ int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq)
 	return 0;
 
 err_mfd:
-
+#if 0
 	aic3xxx_irq_exit(aic3xxx);
+#endif
 err_irq:
 
 	if (pdata && pdata->gpio_irq)
@@ -549,8 +671,14 @@ void aic3xxx_device_exit(struct aic3xxx *aic3xxx)
 
 	pm_runtime_disable(aic3xxx->dev);
 	mfd_remove_devices(aic3xxx->dev);
+	destroy_workqueue(aic3xxx->irq_workqueue);
+	destroy_workqueue(aic3xxx->headsetin_workqueue);
+	destroy_workqueue(aic3xxx->headsetout_workqueue);
+	destroy_workqueue(aic3xxx->spkctl_workqueue);
+	destroy_workqueue(aic3xxx->keypress_workqueue);
+#if 0
 	aic3xxx_irq_exit(aic3xxx);
-
+#endif
 	if (pdata && pdata->gpio_irq)
 		gpio_free(pdata->naudint_irq);
 	if (pdata && pdata->gpio_reset)

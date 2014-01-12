@@ -25,49 +25,26 @@
 
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
+#include <linux/wakelock.h>
 enum aic3xxx_type {
 	TLV320AIC3262 = 0,
 	TLV320AIC3266 = 1,
 	TLV320AIC3285 = 2,
+	TLV320AIC3256 = 3,
 };
 
-#define AIC3262_IRQ_HEADSET_DETECT	0
-#define AIC3262_IRQ_BUTTON_PRESS	1
-#define AIC3262_IRQ_DAC_DRC		2
-#define AIC3262_IRQ_AGC_NOISE		3
-#define AIC3262_IRQ_OVER_CURRENT	4
-#define AIC3262_IRQ_OVERFLOW_EVENT	5
-#define AIC3262_IRQ_SPEAKER_OVER_TEMP	6
-
-#define AIC3262_GPIO1			7
-#define AIC3262_GPIO2			8
-#define AIC3262_GPI1			9
-#define AIC3262_GPI2			10
-#define AIC3262_GPO1			11
-#define AIC3285_GPIO3			9
-#define AIC3285_GPIO4			10
-#define AIC3285_GPIO5			11
-#define AIC3285_GPIO6			12
-#define AIC3285_GPIO7			13
-#define AIC3285_GPIO8			14
-#define AIC3285_GPIO9			15
-#define AIC3285_GPIO10			16
-#define AIC3285_GPIO11			17
-#define AIC3285_GPIO12			18
-#define AIC3285_GPO1			19
-
-struct aic3262_codec_data {
+struct aic3256_codec_data {
 	u16 hs_left_step;
 	u16 hs_right_step;
 	u16 hf_left_step;
 	u16 hf_right_step;
 };
 
-struct aic3262_platform_data {
+struct aic3256_platform_data {
 	int audpwron_gpio;	/* audio power-on gpio */
 	unsigned int irq_base;
 
-	struct aic3262_codec_data *codec;
+	struct aic3256_codec_data *codec;
 };
 
 union aic3xxx_reg_union {
@@ -95,63 +72,75 @@ union aic3xxx_reg_union {
  *          Unsigned short for i2c address.
  *----------------------------------------------------------------------------
  */
-struct aic3262_setup_data {
+struct aic3256_setup_data {
 	unsigned short i2c_address;
 };
 
 /* GPIO API */
-#define AIC3262_NUM_GPIO 5	/* include 2 GPI and 1 GPO pins */
+#define AIC3256_NUM_GPIO 5 /* include 2 GPI and 1 GPO pins*/
 enum {
-	AIC3262_GPIO1_FUNC_DISABLED =		0,
-	AIC3262_GPIO1_FUNC_INPUT =		1,
-	AIC3262_GPIO1_FUNC_OUTPUT =		3,
-	AIC3262_GPIO1_FUNC_CLOCK_OUTPUT =	4,
-	AIC3262_GPIO1_FUNC_INT1_OUTPUT =	5,
-	AIC3262_GPIO1_FUNC_INT2_OUTPUT =	6,
-	AIC3285_GPIO_FUNC_DSD_CHAN1_OUTPUT =	7,
-	AIC3285_GPIO_FUNC_DSD_CHAN2_OUTPUT =	8,
-	AIC3285_GPIO_FUNC_DAC_MOD_CLK_OUTPUT =	9,
-	AIC3262_GPIO1_FUNC_ADC_MOD_CLK_OUTPUT =	10,
-	AIC3262_GPIO1_FUNC_SAR_ADC_INTERRUPT =	12,
-	AIC3262_GPIO1_FUNC_ASI1_DATA_OUTPUT =	15,
-	AIC3262_GPIO1_FUNC_ASI1_WCLK =		16,
-	AIC3262_GPIO1_FUNC_ASI1_BCLK =		17,
-	AIC3262_GPIO1_FUNC_ASI2_WCLK =		18,
-	AIC3262_GPIO1_FUNC_ASI2_BCLK =		19,
-	AIC3262_GPIO1_FUNC_ASI3_WCLK =		20,
-	AIC3262_GPIO1_FUNC_ASI3_BCLK =		21,
-	AIC3285_GPIO_I2C_MASTER_SCL =		30,
-	AIC3285_GPIO_I2C_MASTER_SDA =		30,
+	AIC3256_GPIO1_FUNC_DISABLED		= 0,
+	AIC3256_GPIO1_FUNC_INPUT		= 1,
+	AIC3256_GPIO1_FUNC_OUTPUT		= 3,
+	AIC3256_GPIO1_FUNC_CLOCK_OUTPUT		= 4,
+	AIC3256_GPIO1_FUNC_INT1_OUTPUT		= 5,
+	AIC3256_GPIO1_FUNC_INT2_OUTPUT		= 6,
+	AIC3256_GPIO1_FUNC_ADC_MOD_CLK_OUTPUT	= 10,
+	AIC3256_GPIO1_FUNC_SAR_ADC_INTERRUPT	= 12,
+	AIC3256_GPIO1_FUNC_ASI1_DATA_OUTPUT	= 15,
+	AIC3256_GPIO1_FUNC_ASI1_WCLK		= 16,
+	AIC3256_GPIO1_FUNC_ASI1_BCLK		= 17,
+	AIC3256_GPIO1_FUNC_ASI2_WCLK		= 18,
+	AIC3256_GPIO1_FUNC_ASI2_BCLK		= 19,
+	AIC3256_GPIO1_FUNC_ASI3_WCLK		= 20,
+	AIC3256_GPIO1_FUNC_ASI3_BCLK		= 21
+
 };
 
 enum {
-	AIC3262_GPIO2_FUNC_DISABLED =		0,
-	AIC3262_GPIO2_FUNC_INPUT =		1,
-	AIC3262_GPIO2_FUNC_OUTPUT =		3,
-	AIC3262_GPIO2_FUNC_CLOCK_OUTPUT =	4,
-	AIC3262_GPIO2_FUNC_INT1_OUTPUT =	5,
-	AIC3262_GPIO2_FUNC_INT2_OUTPUT =	6,
-	AIC3262_GPIO2_FUNC_ADC_MOD_CLK_OUTPUT = 10,
-	AIC3262_GPIO2_FUNC_SAR_ADC_INTERRUPT =	12,
-	AIC3262_GPIO2_FUNC_ASI1_DATA_OUTPUT =	15,
-	AIC3262_GPIO2_FUNC_ASI1_WCLK =		16,
-	AIC3262_GPIO2_FUNC_ASI1_BCLK =		17,
-	AIC3262_GPIO2_FUNC_ASI2_WCLK =		18,
-	AIC3262_GPIO2_FUNC_ASI2_BCLK =		19,
-	AIC3262_GPIO2_FUNC_ASI3_WCLK =		20,
-	AIC3262_GPIO2_FUNC_ASI3_BCLK =		21
+	AIC3256_GPIO2_FUNC_DISABLED		= 0,
+	AIC3256_GPIO2_FUNC_INPUT		= 1,
+	AIC3256_GPIO2_FUNC_OUTPUT		= 3,
+	AIC3256_GPIO2_FUNC_CLOCK_OUTPUT		= 4,
+	AIC3256_GPIO2_FUNC_INT1_OUTPUT		= 5,
+	AIC3256_GPIO2_FUNC_INT2_OUTPUT		= 6,
+	AIC3256_GPIO2_FUNC_ADC_MOD_CLK_OUTPUT	= 10,
+	AIC3256_GPIO2_FUNC_SAR_ADC_INTERRUPT	= 12,
+	AIC3256_GPIO2_FUNC_ASI1_DATA_OUTPUT	= 15,
+	AIC3256_GPIO2_FUNC_ASI1_WCLK		= 16,
+	AIC3256_GPIO2_FUNC_ASI1_BCLK		= 17,
+	AIC3256_GPIO2_FUNC_ASI2_WCLK		= 18,
+	AIC3256_GPIO2_FUNC_ASI2_BCLK		= 19,
+	AIC3256_GPIO2_FUNC_ASI3_WCLK		= 20,
+	AIC3256_GPIO2_FUNC_ASI3_BCLK		= 21
 };
 enum {
-	AIC3262_GPO1_FUNC_DISABLED =		0,
-	AIC3262_GPO1_FUNC_MSO_OUTPUT_FOR_SPI =	1,
-	AIC3262_GPO1_FUNC_GENERAL_PURPOSE_OUTPUT = 2,
-	AIC3262_GPO1_FUNC_CLOCK_OUTPUT =	3,
-	AIC3262_GPO1_FUNC_INT1_OUTPUT =	4,
-	AIC3262_GPO1_FUNC_INT2_OUTPUT =	5,
-	AIC3262_GPO1_FUNC_ADC_MOD_CLK_OUTPUT =	7,
-	AIC3262_GPO1_FUNC_SAR_ADC_INTERRUPT =	12,
-	AIC3262_GPO1_FUNC_ASI1_DATA_OUTPUT =	15,
+	AIC3256_GPIO_MFP5_FUNC_DISABLED		= 0,
+	AIC3256_GPIO_MFP5_FUNC_INPUT		= 1,
+	AIC3256_GPIO_MFP5_FUNC_OUTPUT		= 5,
 };
+
+enum {
+	AIC3256_GPO1_FUNC_DISABLED		= 0,
+	AIC3256_GPO1_FUNC_MSO_OUTPUT_FOR_SPI	= 1,
+	AIC3256_GPO1_FUNC_GENERAL_PURPOSE_OUTPUT = 2,
+	AIC3256_GPO1_FUNC_CLOCK_OUTPUT		= 3,
+	AIC3256_GPO1_FUNC_INT1_OUTPUT		= 4,
+	AIC3256_GPO1_FUNC_INT2_OUTPUT		= 5,
+	AIC3256_GPO1_FUNC_ADC_MOD_CLK_OUTPUT	= 7,
+	AIC3256_GPO1_FUNC_SAR_ADC_INTERRUPT	= 12,
+	AIC3256_GPO1_FUNC_ASI1_DATA_OUTPUT	= 15,
+};
+
+#define AIC3256_IRQ_HEADSET_DETECT	0
+#define AIC3256_IRQ_BUTTON_PRESS	1
+#define AIC3256_IRQ_DAC_DRC		2
+#define AIC3256_IRQ_AGC_NOISE		3
+#define AIC3256_IRQ_OVER_CURRENT	4
+#define AIC3256_IRQ_OVERFLOW_EVENT	5
+#define AIC3256_IRQ_SPEAKER_OVER_TEMP	6
+
+
 /*
  *----------------------------------------------------------------------------
  * @struct  aic3262_configs |
@@ -206,20 +195,42 @@ struct aic3xxx {
 	struct mutex irq_lock;
 	enum aic3xxx_type type;
 	struct device *dev;
+	
+	int (*read_dev)(struct aic3xxx *aic3256, unsigned int reg,
+			int bytes, void *dest);
+	int (*write_dev)(struct aic3xxx *aic3256, unsigned int reg,
+			 int bytes, const void *src);
+	
 	struct regmap *regmap;
 	void *control_data;
 	unsigned int irq;
 	unsigned int irq_base;
+	unsigned int jack_irq;
+	unsigned int key_irq;
 	u8 irq_masks_cur;
 	u8 irq_masks_cache;
 	/* Used over suspend/resume */
 	bool suspended;
 	u8 book_no;
 	u8 page_no;
-	int shutdown_complete;
+	struct workqueue_struct *irq_workqueue;
+	struct delayed_work irq_delayed_work;
+	struct wake_lock irq_wake_lock;
+	//headset in
+	struct workqueue_struct *headsetin_workqueue;
+	struct delayed_work headsetin_delayed_work;
+	//headset out
+	struct workqueue_struct *headsetout_workqueue;
+	struct delayed_work headsetout_delayed_work;
+	//LOL
+	struct workqueue_struct *spkctl_workqueue;
+	struct delayed_work spkctl_delayed_work;
+	//key press
+	struct workqueue_struct *keypress_workqueue;
+	struct delayed_work keypress_delayed_work;
 };
 
-struct aic3262_gpio_setup {
+struct aic3256_gpio_setup {
 	u8 used;		/* GPIO, GPI and GPO is used in the board, */
 				/* used = 1 else 0 */
 	u8 in;			/* GPIO is used as input, in = 1 else in = 0 */
@@ -242,9 +253,12 @@ struct aic3xxx_pdata {
 				/* a GPIO pin of AP */
 	unsigned int gpio_reset;/* is the codec being reset by a gpio*/
 				/* [host] pin, if yes provide the number. */
-	struct aic3262_gpio_setup *gpio;/* all gpio configuration */
+	struct aic3256_gpio_setup *gpio;/* all gpio configuration */
 	int naudint_irq;	/* audio interrupt */
+	int jackint_irq;
+	int keyint_irq;
 	unsigned int irq_base;
+	unsigned int debounce_time_ms;
 };
 
 static inline int aic3xxx_request_irq(struct aic3xxx *aic3xxx, int irq,
@@ -281,10 +295,14 @@ int aic3xxx_bulk_write(struct aic3xxx *aic3xxx, unsigned int reg,
 int aic3xxx_wait_bits(struct aic3xxx *aic3xxx, unsigned int reg,
 		      unsigned char mask, unsigned char val, int delay,
 		      int counter);
-
+void aic325x_irq_work(struct work_struct *work);
+void aic325x_headsetin_work(struct work_struct *work);
+void aic325x_headsetout_work(struct work_struct *work);
+void aic325x_keypress_work(struct work_struct *work);
+void aic3xxx_spkctl_work(struct work_struct *work);
 int aic3xxx_irq_init(struct aic3xxx *aic3xxx);
 void aic3xxx_irq_exit(struct aic3xxx *aic3xxx);
 int aic3xxx_device_init(struct aic3xxx *aic3xxx, int irq);
 void aic3xxx_device_exit(struct aic3xxx *aic3xxx);
 
-#endif /* End of __MFD_AIC3262_CORE_H__ */
+#endif /* End of __MFD_AIC3256_CORE_H__ */

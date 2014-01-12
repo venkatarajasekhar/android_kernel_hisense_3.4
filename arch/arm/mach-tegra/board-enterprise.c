@@ -169,11 +169,13 @@ static void __init enterprise_setup_bluesleep(void)
 }
 #endif
 
+#if 0
 static void __init enterprise_gps_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_GPS_PWN);
 	tegra_gpio_enable(TEGRA_GPIO_GPS_RST_N);
 }
+#endif
 
 static __initdata struct tegra_clk_init_table enterprise_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -240,13 +242,13 @@ static struct aic3256_gpio_setup aic3256_gpio[] = {
 
 static struct aic3xxx_pdata aic3256_codec_pdata = {
 	/* debounce time */
-	.gpio_irq	= 1,
-	.gpio_reset	= TEGRA_GPIO_CODEC_RST,
-	.gpio		= aic3256_gpio,
-	.naudint_irq	= TEGRA_GPIO_CDC_IRQ_N,
-	.jackint_irq  = TEGRA_GPIO_M470_HP_DET,
-	.keyint_irq = TEGRA_GPIO_M470_KEY_DET,
-	.irq_base	= AIC3256_CODEC_IRQ_BASE,
+	.gpio_irq	  = 1,
+	.gpio_reset	  = TEGRA_GPIO_CODEC_RST,
+	.gpio		  = aic3256_gpio,
+	.naudint_irq	  = TEGRA_GPIO_CDC_IRQ_N,
+	.jackint_irq      = TEGRA_GPIO_M470_HP_DET,
+	.keyint_irq       = TEGRA_GPIO_M470_KEY_DET,
+	.irq_base	  = AIC3256_CODEC_IRQ_BASE,
 	.debounce_time_ms = 512,
 };
 
@@ -406,7 +408,7 @@ static struct i2c_board_info __initdata max98088_board_info = {
 static struct i2c_board_info __initdata enterprise_codec_aic325x_info = {
 	I2C_BOARD_INFO("tlv320aic325x", 0x18),
 	.platform_data = &aic3256_codec_pdata,
-	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ_N),
+	.irq = TEGRA_GPIO_CDC_IRQ_N,
 };
 
 static struct i2c_board_info __initdata nfc_board_info = {
@@ -1032,8 +1034,10 @@ static void __init tegra_enterprise_init(void)
 //	enterprise_audio_init();
 //	enterprise_baseband_init();
 	enterprise_panel_init();
-	enterprise_bluedroid_pm();
-	enterprise_gps_init();
+//#ifdef CONFIG_BLUEDROID_PM
+//	enterprise_bluedroid_pm();
+//#endif
+//	enterprise_gps_init();
 	enterprise_emc_init();
 	enterprise_sensors_init();
 	enterprise_suspend_init();
