@@ -203,7 +203,7 @@ enum tegra_bb_type {
 #define TEGRA_GPIO_TP_LP0                                TEGRA_GPIO_PH6
 #define TEGRA_GPIO_PMU_CHRG_DET             TEGRA_GPIO_PI6
 #define TEGRA_GPIO_SDMMC_CD_N               TEGRA_GPIO_PI5
-#define TEGRA_GPIO_HDMI_HPD                         TEGRA_GPIO_PN7
+#define TEGRA_GPIO_HDMI_HPD                     TEGRA_GPIO_PN7
 #define TEGRA_GPIO_COMPASS_RST_N                TEGRA_GPIO_PN4
 #define TEGRA_GPIO_COMPASS_DRDY                 TEGRA_GPIO_PW0
 #define TEGRA_GPIO_LVDS_SHTDN_N                 TEGRA_GPIO_PN6

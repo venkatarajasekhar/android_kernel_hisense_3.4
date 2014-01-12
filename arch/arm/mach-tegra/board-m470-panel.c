@@ -109,6 +109,8 @@ static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
 
 static p_tegra_dc_bl_output bl_output;
 
+static bool kernel_1st_panel_init = true;
+
 static void enterprise_backlight_init(void)
 {
 	gpio_request(enterprise_lcd_bl_pwm, "bl_pwm");
@@ -116,50 +118,33 @@ static void enterprise_backlight_init(void)
 	tegra_gpio_disable(enterprise_lcd_bl_pwm);
 }
 
-static int brightness_old = 1;
 static int enterprise_backlight_notify(struct device *unused, int brightness)
 {
-         static int count = 0;
 	int cur_sd_brightness = atomic_read(&sd_brightness);
 
 	/* SD brightness is a percentage, 8-bit value. */
 	brightness = (brightness * cur_sd_brightness) / 255;
-	
+
 	/* Apply any backlight response curve */
 	if (brightness > 255)
 		pr_info("Error: Brightness > 255!\n");
 	else
-		brightness = (bl_output[brightness]*4)/5;//reduce bl 20% brightness
+		brightness = bl_output[brightness];
 
-         if (brightness != 0) 
-         {
-		if (!count)
-		{
-			printk("%s: brightness = %d\n", __func__, brightness);
-			count = 1;
-		}
-         }
-         else
-         {
-		count = 0;
-		gpio_set_value(enterprise_lcd_bl_en, 0);
-         }
-         
 	return brightness;
 }
 
-static void enterprise_backlight_notify_after(struct device *unused, int brightness)
-{
-	if ((brightness_old == 0) && (brightness != 0))
-	{
-		msleep(15);
-		gpio_set_value(enterprise_lcd_bl_en, 1);
-	} 
-
-	brightness_old = brightness;
-}
-
 static int enterprise_disp1_check_fb(struct device *dev, struct fb_info *info);
+
+static struct platform_pwm_backlight_data external_pwm_disp1_backlight_data = {
+	.pwm_id		= 3,
+	.max_brightness	= 255,
+	.dft_brightness	= 224,
+	.pwm_period_ns	= 1000000,
+	.notify		= enterprise_backlight_notify,
+	/* Only toggle backlight on fb blank notifications for disp1 */
+	.check_fb	= enterprise_disp1_check_fb,
+};
 
 #if IS_EXTERNAL_PWM
 static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
@@ -173,7 +158,6 @@ static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
 	.check_fb	= enterprise_disp1_check_fb,
 };
 #else
-
 /*
  * In case which_pwm is TEGRA_PWM_PM0,
  * gpio_conf_to_sfio should be TEGRA_GPIO_PW0: set LCD_CS1_N pin to SFIO
@@ -508,7 +492,7 @@ static void enterprise_panel_bl_shutdown(void)
 	
 	gpio_direction_output(enterprise_lcd_bl_en, 0);
 	mdelay(5);
-	tegra_gpio_enable(enterprise_lcd_bl_pwm);
+	//tegra_gpio_enable(enterprise_lcd_bl_pwm);
 	gpio_direction_output(enterprise_lcd_bl_pwm, 0);
 	mdelay(15);
 	gpio_direction_output(enterprise_en_vdd_bl, 0);
@@ -687,7 +671,20 @@ int __init enterprise_panel_init(void)
 	enterprise_carveouts[1].size = tegra_carveout_size;
 #endif
 
-	gpio_direction_input(enterprise_hdmi_hpd);
+	err = gpio_request(enterprise_hdmi_hpd, "hdmi_hpd");
+	if (err < 0) {
+		pr_err("%s: gpio_request failed %d\n", __func__, err);
+		return err;
+	}
+	err = gpio_direction_input(enterprise_hdmi_hpd);
+	if (err < 0) {
+		pr_err("%s: gpio_direction_input failed %d\n",
+			__func__, err);
+		gpio_free(enterprise_hdmi_hpd);
+		return err;
+	}
+		err = platform_add_devices(enterprise_gfx_devices,
+			ARRAY_SIZE(enterprise_gfx_devices));
 
 	enterprise_backlight_init();
 
@@ -712,7 +709,8 @@ int __init enterprise_panel_init(void)
 #endif
 
 	/* Copy the bootloader fb to the fb. */
-	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
+	__tegra_move_framebuffer(&enterprise_nvmap_device,
+		tegra_fb_start, tegra_bootloader_fb_start,
 		min(tegra_fb_size, tegra_bootloader_fb_size));
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
@@ -744,3 +742,4 @@ int __init enterprise_panel_init(void)
 
 	return err;
 }
+
