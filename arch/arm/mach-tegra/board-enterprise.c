@@ -169,13 +169,11 @@ static void __init enterprise_setup_bluesleep(void)
 }
 #endif
 
-#if 0
 static void __init enterprise_gps_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_GPS_PWN);
 	tegra_gpio_enable(TEGRA_GPIO_GPS_RST_N);
 }
-#endif
 
 static __initdata struct tegra_clk_init_table enterprise_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -1053,7 +1051,7 @@ static void __init tegra_enterprise_init(void)
 //#ifdef CONFIG_BLUEDROID_PM
 //	enterprise_bluedroid_pm();
 //#endif
-//	enterprise_gps_init();
+	enterprise_gps_init();
 	enterprise_emc_init();
 	enterprise_sensors_init();
 	enterprise_suspend_init();
