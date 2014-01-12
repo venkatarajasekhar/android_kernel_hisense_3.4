@@ -111,6 +111,13 @@ static p_tegra_dc_bl_output bl_output;
 
 static bool kernel_1st_panel_init = true;
 
+static void enterprise_backlight_init(void)
+{
+	gpio_request(enterprise_lcd_bl_pwm, "bl_pwm");
+	
+	tegra_gpio_disable(enterprise_lcd_bl_pwm);
+}
+
 static int enterprise_backlight_notify(struct device *unused, int brightness)
 {
 	int cur_sd_brightness = atomic_read(&sd_brightness);
@@ -445,51 +452,6 @@ static struct tegra_dc_platform_data enterprise_disp2_pdata = {
 	.emc_clk_rate	= 300000000,
 };
 
-static int avdd_dsi_csi_rail_enable(void)
-{
-	int ret;
-
-	if (dsi_regulator_status == true)
-		return 0;
-
-	if (enterprise_dsi_reg == NULL) {
-		enterprise_dsi_reg = regulator_get(NULL, "avdd_dsi_csi");
-		if (IS_ERR_OR_NULL(enterprise_dsi_reg)) {
-			pr_err("dsi: Could not get regulator avdd_dsi_csi\n");
-			enterprise_dsi_reg = NULL;
-			return PTR_ERR(enterprise_dsi_reg);
-		}
-	}
-	ret = regulator_enable(enterprise_dsi_reg);
-	if (ret < 0) {
-		pr_err("DSI regulator avdd_dsi_csi could not be enabled\n");
-		return ret;
-	}
-	dsi_regulator_status = true;
-	return 0;
-}
-
-static int avdd_dsi_csi_rail_disable(void)
-{
-	int ret;
-
-	if (dsi_regulator_status == false)
-		return 0;
-
-	if (enterprise_dsi_reg == NULL) {
-		pr_warn("%s: unbalanced disable\n", __func__);
-		return -EIO;
-	}
-
-	ret = regulator_disable(enterprise_dsi_reg);
-	if (ret < 0) {
-		pr_err("DSI regulator avdd_dsi_csi cannot be disabled\n");
-		return ret;
-	}
-	dsi_regulator_status = false;
-	return 0;
-}
-
 static int enterprise_panel_enable(struct device *dev)
 {
 	gpio_direction_output(enterprise_en_lcd_3v3, 1);
@@ -530,7 +492,7 @@ static void enterprise_panel_bl_shutdown(void)
 	
 	gpio_direction_output(enterprise_lcd_bl_en, 0);
 	mdelay(5);
-	//tegra_gpio_enable(enterprise_lcd_bl_pwm);
+	tegra_gpio_enable(enterprise_lcd_bl_pwm);
 	gpio_direction_output(enterprise_lcd_bl_pwm, 0);
 	mdelay(15);
 	gpio_direction_output(enterprise_en_vdd_bl, 0);
@@ -538,14 +500,6 @@ static void enterprise_panel_bl_shutdown(void)
 	mdelay(300);
 }
 #endif //config_tegra_dc
-
-#ifdef CONFIG_TEGRA_DC
-static int enterprise_dsi_panel_postsuspend(void)
-{
-	/* Disable enterprise dsi rail */
-	return avdd_dsi_csi_rail_disable();
-}
-#endif
 
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
@@ -658,30 +612,53 @@ static struct platform_device *enterprise_gfx_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_NVMAP)
 	&enterprise_nvmap_device,
 #endif
-#if IS_EXTERNAL_PWM
-	&tegra_pwfm3_device,
-#else
 	&tegra_pwfm0_device,
-#endif
-};
-
-static struct platform_device *external_pwm_gfx_devices[] __initdata = {
-#if defined(CONFIG_TEGRA_NVMAP)
-	&enterprise_nvmap_device,
-#endif
-	&tegra_pwfm3_device,
 };
 
 static struct platform_device *enterprise_bl_devices[]  = {
 	&enterprise_disp1_backlight_device,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/* put early_suspend/late_resume handlers here for the display in order
+ * to keep the code out of the display driver, keeping it closer to upstream
+ */
+struct early_suspend enterprise_panel_early_suspender;
+
+static void enterprise_panel_early_suspend(struct early_suspend *h)
+{
+	/* power down LCD, add use a black screen for HDMI */
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
+	if (num_registered_fb > 1)
+		fb_blank(registered_fb[1], FB_BLANK_NORMAL);
+
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_store_default_gov();
+	cpufreq_change_gov(cpufreq_conservative_gov);
+#endif
+}
+
+static void enterprise_panel_late_resume(struct early_suspend *h)
+{
+	unsigned i;
+
+        for (i = 0; i < num_registered_fb; i++)
+		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
+
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_restore_default_gov();
+#endif
+	
+}
+#endif
+
 int __init enterprise_panel_init(void)
 {
 	int err;
 	struct resource __maybe_unused *res;
 	struct board_info board_info;
-//	struct platform_device *phost1x;
+	struct platform_device *phost1x;
 
 	tegra_get_board_info(&board_info);
 
@@ -709,11 +686,20 @@ int __init enterprise_panel_init(void)
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
 
-//#ifdef CONFIG_TEGRA_GRHOST
-//	phost1x = tegra3_register_host1x_devices();
-//	if (!phost1x)
-//		return -EINVAL;
-//#endif
+	enterprise_backlight_init();
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	enterprise_panel_early_suspender.suspend = enterprise_panel_early_suspend;
+	enterprise_panel_early_suspender.resume = enterprise_panel_late_resume;
+	enterprise_panel_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	register_early_suspend(&enterprise_panel_early_suspender);
+#endif
+
+#ifdef CONFIG_TEGRA_GRHOST
+	phost1x = tegra3_register_host1x_devices();
+	if (!phost1x)
+		return -EINVAL;
+#endif
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	res = platform_get_resource_byname(&enterprise_disp1_device,
@@ -729,7 +715,7 @@ int __init enterprise_panel_init(void)
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	if (!err) {
-//		enterprise_disp1_device.dev.parent = &phost1x->dev;
+		enterprise_disp1_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp1_device);
 	}
 
@@ -738,14 +724,14 @@ int __init enterprise_panel_init(void)
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 	if (!err) {
-//		enterprise_disp2_device.dev.parent = &phost1x->dev;
+		enterprise_disp2_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp2_device);
 	}
 #endif
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_NVAVP)
 	if (!err) {
-//		nvavp_device.dev.parent = &phost1x->dev;
+		nvavp_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&nvavp_device);
 	}
 #endif
