@@ -42,7 +42,6 @@
 #include <linux/mfd/tlv320aic3xxx-core.h>
 #include <sound/tlv320aic325x.h>
 
-#include <linux/nfc/pn544.h>
 #include <linux/of_platform.h>
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
@@ -83,33 +82,6 @@
 #ifdef CONFIG_TOUCHSCREEN_FT5X06
 #include <linux/i2c/ft5x06_ts.h>
 #endif
-
-/* wl128x BT, FM, GPS connectivity chip */
-struct ti_st_plat_data enterprise_wilink_pdata = {
-       .nshutdown_gpio = TEGRA_GPIO_PE6,
-       .dev_name = BLUETOOTH_UART_DEV_NAME,
-       .flow_cntrl = 1,
-       .baud_rate = 3000000,
-};
-
-static struct platform_device wl128x_device = {
-       .name           = "kim",
-       .id             = -1,
-       .dev.platform_data = &enterprise_wilink_pdata,
-};
-
-static struct platform_device btwilink_device = {
-       .name = "btwilink",
-       .id = -1,
-};
-
-static noinline void __init enterprise_bt_st(void)
-{
-       pr_info("enterprise_bt_st");
-
-       platform_device_register(&wl128x_device);
-       platform_device_register(&btwilink_device);
-}
 
 #ifdef CONFIG_BT_BLUESLEEP
 static struct rfkill_gpio_platform_data enterprise_bt_rfkill_pdata[] = {
