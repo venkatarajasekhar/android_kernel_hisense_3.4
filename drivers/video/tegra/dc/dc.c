@@ -2634,6 +2634,10 @@ static void tegra_dc_shutdown(struct platform_device *ndev)
 	if (!dc || !dc->enabled)
 		return;
 
+	/* heqi add */
+	if (dc->out && dc->out->blshutdown)
+		dc->out->blshutdown();
+
 	tegra_dc_disable(dc);
 }
 

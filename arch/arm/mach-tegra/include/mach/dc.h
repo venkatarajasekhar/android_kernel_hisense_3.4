@@ -509,6 +509,8 @@ struct tegra_dc_out {
 	int	(*hotplug_init)(struct device *);
 	int	(*postsuspend)(void);
 	void	(*hotplug_report)(bool);
+	/* heqi add */
+	void	(*blshutdown)(void);	
 };
 
 /* bits for tegra_dc_out.flags */
@@ -669,6 +671,7 @@ struct tegra_fb_data {
 struct tegra_dc_platform_data {
 	unsigned long		flags;
 	unsigned long		emc_clk_rate;
+	unsigned long		min_emc_clk_rate;
 	struct tegra_dc_out	*default_out;
 	struct tegra_fb_data	*fb;
 

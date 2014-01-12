@@ -92,6 +92,8 @@ static struct regulator *enterprise_hdmi_vddio;
 #endif
 
 static atomic_t sd_brightness = ATOMIC_INIT(255);
+struct clk *disp1_emc_min_clk;
+static struct tegra_dc_platform_data enterprise_disp1_pdata;
 
 static tegra_dc_bl_output enterprise_bl_output_measured_a02 = {
 	1, 5, 9, 10, 11, 12, 12, 13,
@@ -276,6 +278,7 @@ static struct platform_device enterprise_disp1_backlight_device = {
 	},
 };
 
+#if 0
 static struct platform_device external_pwm_disp1_backlight_device = {
 	.name	= "pwm-backlight",
 	.id	= -1,
@@ -283,6 +286,8 @@ static struct platform_device external_pwm_disp1_backlight_device = {
 		.platform_data = &external_pwm_disp1_backlight_data,
 	},
 };
+#endif
+
 #ifdef CONFIG_TEGRA_DC
 static int enterprise_hdmi_vddio_enable(struct device *dev)
 {
@@ -588,6 +593,39 @@ static int avdd_dsi_csi_rail_disable(void)
 	return 0;
 }
 
+static int enterprise_panel_enable(struct device *dev)
+{
+	gpio_direction_output(enterprise_en_lcd_3v3, 1);
+	msleep(20);
+	gpio_direction_output(enterprise_en_lcd_1v8, 1);
+	gpio_direction_output(enterprise_lvds_shtdn_n, 1);
+
+	if(enterprise_disp1_pdata.min_emc_clk_rate)  {
+		clk_enable(disp1_emc_min_clk);
+		clk_set_rate(disp1_emc_min_clk,enterprise_disp1_pdata.min_emc_clk_rate);
+	}
+
+	return 0;
+}
+
+static int enterprise_panel_disable(void)
+{
+	int ret = 0;
+	
+	printk("%s\n", __func__);
+
+	gpio_direction_output(enterprise_lvds_shtdn_n, 0);
+	gpio_direction_output(enterprise_en_lcd_1v8, 0);
+	msleep(20);
+	gpio_direction_output(enterprise_en_lcd_3v3, 0);
+
+	if(enterprise_disp1_pdata.min_emc_clk_rate)  {
+		clk_set_rate(disp1_emc_min_clk, 0);
+		clk_disable(disp1_emc_min_clk);
+	}
+	return ret;
+}
+
 static int enterprise_dsi_panel_enable(struct device *dev)
 {
 	int ret;
@@ -663,7 +701,22 @@ static int enterprise_dsi_panel_disable(void)
 #endif
 	return 0;
 }
-#endif
+
+/* heqi add */
+static void enterprise_panel_bl_shutdown(void)
+{
+	printk("%s: system is shutting down, firstly shut down backlight\n", __func__);
+	
+	gpio_direction_output(enterprise_lcd_bl_en, 0);
+	mdelay(5);
+	//tegra_gpio_enable(enterprise_lcd_bl_pwm);
+	gpio_direction_output(enterprise_lcd_bl_pwm, 0);
+	mdelay(15);
+	gpio_direction_output(enterprise_en_vdd_bl, 0);
+
+	mdelay(300);
+}
+#endif //config_tegra_dc
 
 static void enterprise_stereo_set_mode(int mode)
 {
@@ -811,28 +864,29 @@ static struct tegra_dc_out enterprise_disp1_out = {
 	.align		= TEGRA_DC_ALIGN_MSB,
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.sd_settings	= &enterprise_sd_settings,
+	.parent_clk	= "pll_p",
 
-	.flags		= DC_CTRL_MODE,
+	.parent_clk_backup = "pll_d2_out0",
 
-	.type		= TEGRA_DC_OUT_DSI,
+	.type		= TEGRA_DC_OUT_RGB,
+	.depth		= 24,
+	.dither		= TEGRA_DC_ORDERED_DITHER,
 
 	.modes		= enterprise_dsi_modes,
 	.n_modes	= ARRAY_SIZE(enterprise_dsi_modes),
 
-	.dsi		= &enterprise_dsi,
-	.stereo		= &enterprise_stereo,
+	.enable		= enterprise_panel_enable,
+	.disable	= enterprise_panel_disable,
+	.blshutdown = enterprise_panel_bl_shutdown,
 
-	.enable		= enterprise_dsi_panel_enable,
-	.disable	= enterprise_dsi_panel_disable,
-	.postsuspend	= enterprise_dsi_panel_postsuspend,
-
-	.width		= 151,
-	.height		= 94,
+	.height	= 151,
+	.width	= 94,
 };
 static struct tegra_dc_platform_data enterprise_disp1_pdata = {
 	.flags		= TEGRA_DC_FLAG_ENABLED,
 	.default_out	= &enterprise_disp1_out,
 	.emc_clk_rate	= 204000000,
+	.min_emc_clk_rate = 204000000,
 	.fb		= &enterprise_dsi_fb_data,
 };
 
@@ -922,14 +976,10 @@ int __init enterprise_panel_init(void)
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
 
-#if !(IS_EXTERNAL_PWM)
-	enterprise_disp1_backlight_data.clk_div = 0x1D;
-#endif
-        //supply information to newer version of dc which seems to require new version of libnvrm.so	
-	enterprise_dsi.chip_id = tegra_get_chipid();
-	enterprise_dsi.chip_rev = tegra_revision;
-
-	enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
+//#if !(IS_EXTERNAL_PWM)
+//	enterprise_disp1_backlight_data.clk_div = 0x1D;
+//#endif
+//	enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
 	bl_output = enterprise_bl_output_measured_a03;
 
 #if defined(CONFIG_TEGRA_NVMAP)
