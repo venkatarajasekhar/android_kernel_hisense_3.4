@@ -109,8 +109,6 @@ static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
 
 static p_tegra_dc_bl_output bl_output;
 
-static bool kernel_1st_panel_init = true;
-
 static void enterprise_backlight_init(void)
 {
 	gpio_request(enterprise_lcd_bl_pwm, "bl_pwm");
@@ -136,16 +134,6 @@ static int enterprise_backlight_notify(struct device *unused, int brightness)
 
 static int enterprise_disp1_check_fb(struct device *dev, struct fb_info *info);
 
-static struct platform_pwm_backlight_data external_pwm_disp1_backlight_data = {
-	.pwm_id		= 3,
-	.max_brightness	= 255,
-	.dft_brightness	= 224,
-	.pwm_period_ns	= 1000000,
-	.notify		= enterprise_backlight_notify,
-	/* Only toggle backlight on fb blank notifications for disp1 */
-	.check_fb	= enterprise_disp1_check_fb,
-};
-
 #if IS_EXTERNAL_PWM
 static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
 	.pwm_id		= 0,
@@ -158,6 +146,7 @@ static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
 	.check_fb	= enterprise_disp1_check_fb,
 };
 #else
+
 /*
  * In case which_pwm is TEGRA_PWM_PM0,
  * gpio_conf_to_sfio should be TEGRA_GPIO_PW0: set LCD_CS1_N pin to SFIO
