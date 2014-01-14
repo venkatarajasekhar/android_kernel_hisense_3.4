@@ -37,6 +37,7 @@
 #include <mach/fb.h>
 #include <mach/hardware.h>
 #include <mach/gpio-tegra.h>
+#include <linux/clk.h>
 
 #include "board.h"
 #include "board-enterprise.h"
@@ -45,17 +46,14 @@
 #include "fuse.h"
 #include "tegra3_host1x_devices.h"
 
-//for m470
 #define enterprise_en_lcd_1v8		TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
 #define enterprise_en_lcd_3v3		TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
 #define enterprise_lvds_shtdn_n		TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
-#define enterprise_en_vdd_pnl		TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
 #define enterprise_lcd_bl_en		TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
 #define enterprise_lcd_bl_pwm		TEGRA_GPIO_BL_PWM
 #define enterprise_en_vdd_bl		TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
-#define enterprise_hdmi_hpd		TEGRA_GPIO_HDMI_HPD	//TEGRA_GPIO_PN7
+#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
 
-/* default brightness, heqi */
 #define DEFAULT_BRIGHTNESS		66
 
 #ifdef CONFIG_TEGRA_DC
@@ -488,9 +486,7 @@ static void enterprise_panel_bl_shutdown(void)
 
 	mdelay(300);
 }
-#endif //config_tegra_dc
 
-#ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	{
 		.pclk = 66770000,
@@ -569,7 +565,7 @@ static struct platform_device enterprise_disp2_device = {
 		.platform_data = &enterprise_disp2_pdata,
 	},
 };
-#endif
+#endif // CONFIG_TEGRA_DC
 
 #if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout enterprise_carveouts[] = {
@@ -659,7 +655,7 @@ int __init enterprise_panel_init(void)
 	enterprise_carveouts[1].base = tegra_carveout_start;
 	enterprise_carveouts[1].size = tegra_carveout_size;
 #endif
-
+#if 0
 	err = gpio_request(enterprise_hdmi_hpd, "hdmi_hpd");
 	if (err < 0) {
 		pr_err("%s: gpio_request failed %d\n", __func__, err);
@@ -674,6 +670,7 @@ int __init enterprise_panel_init(void)
 	}
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
+#endif
 
 	enterprise_backlight_init();
 
@@ -706,6 +703,12 @@ int __init enterprise_panel_init(void)
 	if (!err) {
 		enterprise_disp1_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp1_device);
+	}
+
+	disp1_emc_min_clk = clk_get(&enterprise_disp1_device.dev, "emc_min");
+	if (IS_ERR(disp1_emc_min_clk)) {
+		dev_dbg(&enterprise_disp1_device.dev, "no peripheral clock\n");
+		clk_put(disp1_emc_min_clk);
 	}
 
 	res = platform_get_resource_byname(&enterprise_disp2_device,

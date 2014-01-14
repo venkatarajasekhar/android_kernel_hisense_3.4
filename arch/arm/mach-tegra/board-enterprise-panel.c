@@ -50,10 +50,9 @@
 #define enterprise_en_lcd_3v3	TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
 #define enterprise_lvds_shtdn_n	TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
 #define enterprise_en_vdd_pnl	TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
-#define enterprise_lcd_bl_en		TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
-#define enterprise_lcd_bl_pwm	TEGRA_GPIO_BL_PWM
-#define enterprise_en_vdd_bl		TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
-#define enterprise_hdmi_hpd		TEGRA_GPIO_HDMI_HPD		//TEGRA_GPIO_PN7
+#define enterprise_lcd_bl_en	TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
+#define enterprise_lcd_bl_pwm	TEGRA_GPIO_BL_PWM       //TEGRA_GPIO_PH0
+#define enterprise_en_vdd_bl	TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
 
 /* default brightness, heqi */
 #define DEFAULT_BRIGHTNESS		66
@@ -65,7 +64,7 @@
 #define DSI_PANEL_RESET 0
 
 #define enterprise_lvds_shutdown	TEGRA_GPIO_PL2
-//#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
+#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
 
 #define enterprise_dsi_panel_reset	TEGRA_GPIO_PW0
 
