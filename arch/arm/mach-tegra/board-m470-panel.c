@@ -668,9 +668,9 @@ int __init enterprise_panel_init(void)
 		gpio_free(enterprise_hdmi_hpd);
 		return err;
 	}
+#endif
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
-#endif
 
 	enterprise_backlight_init();
 
