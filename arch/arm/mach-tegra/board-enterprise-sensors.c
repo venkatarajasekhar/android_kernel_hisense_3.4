@@ -55,6 +55,9 @@
 #include "board.h"
 #include "clock.h"
 
+extern unsigned int his_hw_ver;
+extern unsigned int his_board_version;
+
 static struct board_info board_info;
 
 static struct throttle_table tj_throttle_table[] = {
@@ -536,6 +539,7 @@ static struct enterprise_cam_gpio tai_cam_gpio_data[] = {
 	[3] = TEGRA_CAMERA_GPIO(CAM_FLASH_EN_GPIO, "flash_en", 1),
 	[4] = TEGRA_CAMERA_GPIO(CAM_I2C_MUX_RST_EXP, "cam_i2c_mux_rst", 1),
 };
+
 static struct pca954x_platform_mode enterprise_pca954x_modes[] = {
 	{ .adap_id = PCA954x_I2C_BUS0, .deselect_on_exit = true, },
 	{ .adap_id = PCA954x_I2C_BUS1, .deselect_on_exit = true, },
@@ -633,95 +637,36 @@ static struct i2c_board_info ar0832_i2c2_boardinfo_tai[] = {
 
 static int enterprise_cam_init(void)
 {
-	int ret;
-	int i;
-	struct board_info cam_bi;
-	bool i2c_mux = false;
+	gpio_direction_output(TEGRA_GPIO_FRONT_CAM_PWDN, 0);
+	gpio_export(TEGRA_GPIO_FRONT_CAM_PWDN, false);
+	
+	gpio_direction_output(TEGRA_GPIO_REAR_CAM_PWDN, 0);
+	gpio_export(TEGRA_GPIO_REAR_CAM_PWDN, false);
+		   
+	gpio_direction_output(TEGRA_GPIO_FRONT_CAM_RST, 0);
+	gpio_export(TEGRA_GPIO_FRONT_CAM_RST, false);
+			
+	gpio_direction_output(TEGRA_GPIO_REAR_CAM_RST_N, 0);
+	gpio_export(TEGRA_GPIO_REAR_CAM_RST_N, false);
 
-	pr_info("%s:++\n", __func__);
-	memset(ent_vicsi_pwr, 0, sizeof(ent_vicsi_pwr));
+	gpio_direction_output(TEGRA_GPIO_CAM_FLASH_EN, 0);
 
-	tegra_get_camera_board_info(&cam_bi);
+	gpio_direction_output(TEGRA_GPIO_CAM_TORCH_EN, 0);
 
-	if (board_info.board_id == BOARD_E1239) {
-		for (i = 0; i < ARRAY_SIZE(tai_cam_gpio_data); i++) {
-			ret = gpio_request(tai_cam_gpio_data[i].gpio,
-					   tai_cam_gpio_data[i].label);
-			if (ret < 0) {
-				pr_err("%s: gpio_request failed for gpio #%d\n",
-					__func__, i);
-				goto fail_free_gpio;
-			}
-			gpio_direction_output(tai_cam_gpio_data[i].gpio,
-					      tai_cam_gpio_data[i].value);
-			gpio_export(tai_cam_gpio_data[i].gpio, false);
-		}
 
-		tegra_clk_init_from_table(tai_front_cam_clk_init_table);
+    	gpio_direction_output(TEGRA_GPIO_CAM_PWR_EN , 0);
+    	gpio_export(TEGRA_GPIO_CAM_PWR_EN, false);
 
-	} else {
-		for (i = 0; i < ARRAY_SIZE(enterprise_cam_gpio_data); i++) {
-			ret = gpio_request(enterprise_cam_gpio_data[i].gpio,
-					   enterprise_cam_gpio_data[i].label);
-			if (ret < 0) {
-				pr_err("%s: gpio_request failed for gpio #%d\n",
-					__func__, i);
-				goto fail_free_gpio;
-			}
-			gpio_direction_output(enterprise_cam_gpio_data[i].gpio,
-					enterprise_cam_gpio_data[i].value);
-			gpio_export(enterprise_cam_gpio_data[i].gpio, false);
-		}
-	}
+//        if((his_board_version == 0) || (his_board_version == 2) || (his_board_version == 3))
+//        {
+            gpio_direction_output(TEGRA_GPIO_CAM_AVDD_PWR_EN , 0);
+            gpio_export(TEGRA_GPIO_CAM_AVDD_PWR_EN, false);
+//        }
 
-	if (board_info.board_id == BOARD_E1205) {
-		if (board_info.fab == BOARD_FAB_A00 ||
-			board_info.fab == BOARD_FAB_A01)
-			i2c_mux = false;
-		else if (board_info.fab == BOARD_FAB_A02)
-			i2c_mux = true;
-	} else if (board_info.board_id == BOARD_E1197) {
-		if (cam_bi.fab == BOARD_FAB_A00)
-			i2c_mux = false;
-		else if (cam_bi.fab == BOARD_FAB_A01)
-			i2c_mux = true;
-	}
+	gpio_direction_output(TEGRA_GPIO_CAM_AF_EN, 0);
+	gpio_export(TEGRA_GPIO_CAM_AF_EN, false);
 
-	if (!i2c_mux) {
-		if (board_info.board_id == BOARD_E1239) {
-			i2c_register_board_info(2, ar0832_i2c2_boardinfo_tai,
-				ARRAY_SIZE(ar0832_i2c2_boardinfo));
-		} else {
-			i2c_register_board_info(2, ar0832_i2c2_boardinfo,
-				ARRAY_SIZE(ar0832_i2c2_boardinfo));
-		}
-	} else {
-		i2c_register_board_info(2, enterprise_i2c2_boardinfo,
-			ARRAY_SIZE(enterprise_i2c2_boardinfo));
-		/*
-		 * Right  camera is on PCA954x's I2C BUS1,
-		 * Left camera is on BUS0
-		 */
-		i2c_register_board_info(PCA954x_I2C_BUS0,
-			enterprise_i2c6_boardinfo,
-			ARRAY_SIZE(enterprise_i2c6_boardinfo));
-		i2c_register_board_info(PCA954x_I2C_BUS1,
-			enterprise_i2c7_boardinfo,
-			ARRAY_SIZE(enterprise_i2c7_boardinfo));
-	}
 	return 0;
-
-fail_free_gpio:
-	pr_err("%s enterprise_cam_init failed!\n", __func__);
-	if (board_info.board_id == BOARD_E1239) {
-		while (i--)
-			gpio_free(tai_cam_gpio_data[i].gpio);
-
-	} else {
-		while (i--)
-			gpio_free(enterprise_cam_gpio_data[i].gpio);
-	}
-	return ret;
 }
 
 #define ENTERPRISE_INA230_ENABLED 0
