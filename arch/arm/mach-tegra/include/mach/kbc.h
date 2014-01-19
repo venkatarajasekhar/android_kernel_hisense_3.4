@@ -65,6 +65,8 @@ enum tegra_pin_type {
 struct tegra_kbc_pin_cfg {
 	enum tegra_pin_type type;
 	unsigned char num;
+	bool is_row;
+	bool en;
 };
 
 struct tegra_kbc_wake_key {
