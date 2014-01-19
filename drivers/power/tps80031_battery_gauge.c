@@ -187,10 +187,10 @@ static int tps80031_battery_voltage(struct tps80031_device_info *di,
 {
 	int voltage;
 
-	voltage = tps80031_gpadc_conversion(SYSTEM_SUPPLY);
+	voltage = tps80031_gpadc_conversion(BATTERY_VOLTAGE);
 	if (voltage < 0)
 		return voltage;
-	voltage = ((voltage * 1000) / 4) * 5;
+	voltage = ((voltage * 5000) / 4096);//DIV4/0xFFF/mV
 
 	if (voltage < 3700000)
 		di->vsys = 10;

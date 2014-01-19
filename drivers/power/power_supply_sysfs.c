@@ -67,6 +67,14 @@ static ssize_t power_supply_show_property(struct device *dev,
 	static char *scope_text[] = {
 		"Unknown", "System", "Device"
 	};
+#ifdef CONFIG_BATTERY_FUEL_GAUGE_DETECT
+	static char *gauge_text[] = {
+		"No", "Yes"
+	};
+	static char *gauge_fw_text[] = {
+		"No", "Yes"
+	};
+#endif
 	ssize_t ret = 0;
 	struct power_supply *psy = dev_get_drvdata(dev);
 	const ptrdiff_t off = attr - power_supply_attrs;
@@ -91,6 +99,12 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", status_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_CHARGE_TYPE)
 		return sprintf(buf, "%s\n", charge_type[value.intval]);
+	#ifdef CONFIG_BATTERY_FUEL_GAUGE_DETECT
+	else if (off == POWER_SUPPLY_PROP_FUEL_GAUGE)
+	return sprintf(buf, "%s\n", gauge_text[value.intval]);
+	else if (off == POWER_SUPPLY_PROP_FUEL_GAUGE_FW)
+	return sprintf(buf, "%s\n", gauge_fw_text[value.intval]);
+	#endif
 	else if (off == POWER_SUPPLY_PROP_HEALTH)
 		return sprintf(buf, "%s\n", health_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_TECHNOLOGY)
@@ -137,6 +151,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(charge_type),
 	POWER_SUPPLY_ATTR(health),
 	POWER_SUPPLY_ATTR(present),
+#ifdef CONFIG_BATTERY_FUEL_GAUGE_DETECT
+	POWER_SUPPLY_ATTR(fuel_gauge),
+	POWER_SUPPLY_ATTR(fuel_gauge_fw),
+#endif
 	POWER_SUPPLY_ATTR(online),
 	POWER_SUPPLY_ATTR(technology),
 	POWER_SUPPLY_ATTR(cycle_count),
