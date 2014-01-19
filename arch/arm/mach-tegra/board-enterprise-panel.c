@@ -45,23 +45,11 @@
 #include "fuse.h"
 #include "tegra3_host1x_devices.h"
 
-//for m470
-#define enterprise_en_lcd_1v8	TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
-#define enterprise_en_lcd_3v3	TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
-#define enterprise_lvds_shtdn_n	TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
-#define enterprise_en_vdd_pnl	TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
-#define enterprise_lcd_bl_en	TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
-#define enterprise_lcd_bl_pwm	TEGRA_GPIO_BL_PWM       //TEGRA_GPIO_PH0
-#define enterprise_en_vdd_bl	TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
-
-/* default brightness, heqi */
-#define DEFAULT_BRIGHTNESS		66
-
 #define DC_CTRL_MODE    TEGRA_DC_OUT_ONE_SHOT_MODE
 
 /* Select panel to be used. */
 #define AVDD_LCD PMU_TCA6416_GPIO_PORT17
-#define DSI_PANEL_RESET 0
+#define DSI_PANEL_RESET 1
 
 #define enterprise_lvds_shutdown	TEGRA_GPIO_PL2
 #define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
@@ -231,12 +219,11 @@ static struct platform_pwm_backlight_data external_pwm_disp1_backlight_data = {
 
 #if IS_EXTERNAL_PWM
 static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
-	.pwm_id		= 0,
+	.pwm_id		= 3,
 	.max_brightness	= 255,
-	.dft_brightness	= DEFAULT_BRIGHTNESS,
-	.pwm_period_ns	= 50000, //20KHz
+	.dft_brightness	= 224,
+	.pwm_period_ns	= 1000000,
 	.notify		= enterprise_backlight_notify,
-	.notify_after	= enterprise_backlight_notify_after,
 	/* Only toggle backlight on fb blank notifications for disp1 */
 	.check_fb	= enterprise_disp1_check_fb,
 };
@@ -286,8 +273,12 @@ static struct platform_device external_pwm_disp1_backlight_device = {
 static int enterprise_hdmi_vddio_enable(struct device *dev)
 {
 	int ret;
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
 	if (!enterprise_hdmi_vddio) {
-		enterprise_hdmi_vddio = regulator_get(NULL, "hdmi_5v0");
+		enterprise_hdmi_vddio = regulator_get(dev, "hdmi_5v0");
 		if (IS_ERR_OR_NULL(enterprise_hdmi_vddio)) {
 			ret = PTR_ERR(enterprise_hdmi_vddio);
 			pr_err("hdmi: couldn't get regulator hdmi_5v0\n");
@@ -302,15 +293,39 @@ static int enterprise_hdmi_vddio_enable(struct device *dev)
 		enterprise_hdmi_vddio = NULL;
 		return ret;
 	}
+	if (board_info.board_id == BOARD_E1239) {
+		ret = gpio_request(TEGRA_GPIO_PM4, "en_hdmi_buffers");
+		if (ret < 0) {
+			pr_err("%s: gpio_request failed %d\n", __func__, ret);
+			return ret;
+		}
+
+		ret = gpio_direction_output(TEGRA_GPIO_PM4, 1);
+		if (ret < 0) {
+			pr_err("%s: gpio_direction_ouput failed %d\n",
+				__func__, ret);
+			gpio_free(TEGRA_GPIO_PM4);
+			return ret;
+		}
+	}
+
 	return ret;
 }
 
 static int enterprise_hdmi_vddio_disable(void)
 {
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
 	if (enterprise_hdmi_vddio) {
 		regulator_disable(enterprise_hdmi_vddio);
 		regulator_put(enterprise_hdmi_vddio);
 		enterprise_hdmi_vddio = NULL;
+	}
+	if (board_info.board_id == BOARD_E1239) {
+		gpio_set_value(TEGRA_GPIO_PM4, 0);
+		gpio_free(TEGRA_GPIO_PM4);
 	}
 	return 0;
 }
@@ -319,7 +334,7 @@ static int enterprise_hdmi_enable(struct device *dev)
 {
 	int ret;
 	if (!enterprise_hdmi_reg) {
-		enterprise_hdmi_reg = regulator_get(NULL, "avdd_hdmi");
+		enterprise_hdmi_reg = regulator_get(dev, "avdd_hdmi");
 		if (IS_ERR_OR_NULL(enterprise_hdmi_reg)) {
 			pr_err("hdmi: couldn't get regulator avdd_hdmi\n");
 			enterprise_hdmi_reg = NULL;
@@ -505,13 +520,17 @@ static struct tegra_dc_sd_settings enterprise_sd_settings = {
 			},
 		},
 	.sd_brightness = &sd_brightness,
+#if IS_EXTERNAL_PWM
+	.bl_device_name = "pwm-backlight",
+#else
 	.bl_device_name = "tegra-pwm-bl",
+#endif
 };
 
 static struct tegra_fb_data enterprise_hdmi_fb_data = {
 	.win		= 0,
-	.xres		= 800,
-	.yres		= 1280,
+	.xres		= 1366,
+	.yres		= 768,
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
@@ -784,24 +803,28 @@ static struct tegra_stereo_out enterprise_stereo = {
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	{
-		.pclk = 66770000,
-		.h_ref_to_sync = 1,
+#if (DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
+		.pclk = 39446000,
+#else
+		.pclk = 35860000,
+#endif
+		.h_ref_to_sync = 4,
 		.v_ref_to_sync = 1,
-		.h_sync_width = 30,
-		.v_sync_width = 2,
-		.h_back_porch = 30,
-		.v_back_porch = 2,
-		.h_active = 800,
-		.v_active = 1280,
-		.h_front_porch = 4,
-		.v_front_porch = 4,
+		.h_sync_width = 16,
+		.v_sync_width = 1,
+		.h_back_porch = 32,
+		.v_back_porch = 1,
+		.h_active = 540,
+		.v_active = 960,
+		.h_front_porch = 32,
+		.v_front_porch = 2,
 	},
 };
 
 static struct tegra_fb_data enterprise_dsi_fb_data = {
 	.win		= 0,
-	.xres		= 800,
-	.yres		= 1280,
+	.xres		= 540,
+	.yres		= 960,
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
@@ -825,8 +848,8 @@ static struct tegra_dc_out enterprise_disp1_out = {
 	.disable	= enterprise_dsi_panel_disable,
 	.postsuspend	= enterprise_dsi_panel_postsuspend,
 
-	.width		= 151,
-	.height		= 94,
+	.width		= 53,
+	.height		= 95,
 };
 static struct tegra_dc_platform_data enterprise_disp1_pdata = {
 	.flags		= TEGRA_DC_FLAG_ENABLED,
@@ -921,11 +944,20 @@ int __init enterprise_panel_init(void)
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
 
+	if (board_info.board_id != BOARD_E1239) {
+		if (board_info.fab >= BOARD_FAB_A03) {
 #if !(IS_EXTERNAL_PWM)
-	enterprise_disp1_backlight_data.clk_div = 0x1D;
+			enterprise_disp1_backlight_data.clk_div = 0x1D;
 #endif
-	enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
-	bl_output = enterprise_bl_output_measured_a03;
+			bl_output = enterprise_bl_output_measured_a03;
+		} else
+			bl_output = enterprise_bl_output_measured_a02;
+	} else {
+		enterprise_bl_devices[0] = &external_pwm_disp1_backlight_device;
+		bl_output = tai_bl_output_measured;
+	}
+	enterprise_dsi.chip_id = tegra_get_chipid();
+	enterprise_dsi.chip_rev = tegra_revision;
 
 #if defined(CONFIG_TEGRA_NVMAP)
 	enterprise_carveouts[1].base = tegra_carveout_start;
@@ -1007,8 +1039,13 @@ int __init enterprise_panel_init(void)
 		return err;
 	}
 #endif
+
+	if (board_info.board_id != BOARD_E1239)
 		err = platform_add_devices(enterprise_gfx_devices,
 			ARRAY_SIZE(enterprise_gfx_devices));
+	else
+		err = platform_add_devices(external_pwm_gfx_devices,
+			ARRAY_SIZE(external_pwm_gfx_devices));
 
 #ifdef CONFIG_TEGRA_GRHOST
 	phost1x = tegra3_register_host1x_devices();
@@ -1057,3 +1094,4 @@ int __init enterprise_panel_init(void)
 
 	return err;
 }
+
