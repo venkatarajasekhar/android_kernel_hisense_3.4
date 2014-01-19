@@ -25,6 +25,7 @@
 #define __LINUX_MFD_TPS80031_H
 
 #include <linux/rtc.h>
+#include <linux/power/ti-fg.h>
 
 /* Supported chips */
 enum chips {
@@ -187,6 +188,27 @@ struct tps80031_pupd_init_data {
 struct tps80031_bg_platform_data {
 	int irq_base;
 	int battery_present;
+	/* Fuelgauge Config */
+	int current_avg_interval;
+	const struct cell_config *cell_cfg;
+};
+struct tps80031_adc_bat_platform_data {
+	int irq_base;
+	int battery_present;
+	int battery_detect_by_ntc;
+	int init_vol_from_btloader;
+	uint32_t vbat_max;
+	uint32_t vbat_min;
+	uint32_t slow_poll;
+	uint32_t fast_poll;
+	uint32_t fast_poll_vol;
+	uint32_t shut_down_vol;
+	uint32_t shut_down_lvl;
+	uint32_t poll_max_times;
+	uint32_t sleep_up_time;
+	uint32_t adc_retry_times;
+	uint32_t max_reverse_times;
+	uint32_t init_adjust_vol;
 };
 
 struct tps80031_platform_data {
@@ -205,6 +227,7 @@ struct tps80031_platform_data {
 	struct tps80031_rtc_platform_data *rtc_pdata;
 	struct tps80031_bg_platform_data *bg_pdata;
 	struct tps80031_charger_platform_data *battery_charger_pdata;
+	struct tps80031_adc_bat_platform_data *adc_battery_pdata;
 };
 
 

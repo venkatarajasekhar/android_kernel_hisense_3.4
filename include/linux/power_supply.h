@@ -13,6 +13,8 @@
 #ifndef __LINUX_POWER_SUPPLY_H__
 #define __LINUX_POWER_SUPPLY_H__
 
+#include <linux/device.h>
+#include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/errno.h>
@@ -82,12 +84,27 @@ enum {
 	POWER_SUPPLY_SCOPE_DEVICE,
 };
 
+#ifdef CONFIG_BATTERY_FUEL_GAUGE_DETECT
+enum {
+	POWER_SUPPLY_GAUGE_NO = 0,
+	POWER_SUPPLY_GAUGE_YES,
+};
+enum {
+	POWER_SUPPLY_GAUGE_FW_NO = 0,
+	POWER_SUPPLY_GAUGE_FW_YES,
+};
+#endif
+
 enum power_supply_property {
 	/* Properties of type `int' */
 	POWER_SUPPLY_PROP_STATUS = 0,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
+#ifdef CONFIG_BATTERY_FUEL_GAUGE_DETECT
+	POWER_SUPPLY_PROP_FUEL_GAUGE,
+	POWER_SUPPLY_PROP_FUEL_GAUGE_FW,
+#endif
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
@@ -180,6 +197,7 @@ struct power_supply {
 	struct work_struct changed_work;
 	spinlock_t changed_lock;
 	bool changed;
+	struct wake_lock work_wake_lock;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	struct led_trigger *charging_full_trig;

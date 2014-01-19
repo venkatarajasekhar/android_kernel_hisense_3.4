@@ -203,6 +203,33 @@ config BATTERY_GAUGE_TPS8003X
 	help
 	 Say Y here to enable support for battery gauge for TPS80031x chips.
 
+config BATTERY_FUEL_GAUGE_DETECT
+	tristate "battery fuel gauge detection"
+	default n
+	help
+	 Say Y here to enable support for battery fuel gauge detection for M470.
+
+config TPS80032_USB_CHARGER
+	tristate "TPS8003x usb charging"
+	depends on BATTERY_GAUGE_TPS8003X || BATTERY_ADC_TPS8003X
+	default n
+	help
+	  Say Y here to enable support for usb charging display.
+
+config BATTERY_ADC_TPS8003X
+	tristate "TPS8003x adc battery driver"
+	depends on MFD_TPS80031
+	default n
+	help
+	 Say Y here to enable support for adc battery for TPS80031x chips.
+
+config BATTERY_ADC_TPS8003X_DEBUG
+	tristate "TPS8003x adc battery driver"
+	depends on BATTERY_ADC_TPS8003X
+	default n
+	help
+	 Say Y here to enable debug support for adc battery for TPS80031x chips.
+
 config CHARGER_TPS65090
 	tristate "TPS65090 battery charger driver"
 	depends on MFD_TPS65090
