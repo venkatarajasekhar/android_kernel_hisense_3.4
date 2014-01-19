@@ -41,6 +41,7 @@ struct tps6238x0_regulator_platform_data {
 	bool en_internal_pulldn;
 	int vsel_gpio;
 	int vsel_def_state;
+	unsigned int ext_ctrl_flag;
 };
 
 #endif /* __LINUX_REGULATOR_TPS6238X0_H */
