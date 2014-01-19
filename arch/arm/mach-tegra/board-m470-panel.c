@@ -479,7 +479,7 @@ static void enterprise_panel_bl_shutdown(void)
 	
 	gpio_direction_output(enterprise_lcd_bl_en, 0);
 	mdelay(5);
-	//tegra_gpio_enable(enterprise_lcd_bl_pwm);
+	tegra_gpio_enable(enterprise_lcd_bl_pwm);
 	gpio_direction_output(enterprise_lcd_bl_pwm, 0);
 	mdelay(15);
 	gpio_direction_output(enterprise_en_vdd_bl, 0);
