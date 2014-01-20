@@ -104,14 +104,14 @@ static struct platform_device enterprise_bt_rfkill_device = {
 static struct resource enterprise_brcm_bluesleep_resources[] = {
 	[0] = {
 		.name = "gpio_host_wake",
-			.start  = TEGRA_GPIO_PS2,
-			.end    = TEGRA_GPIO_PS2,
+			.start  = TEGRA_GPIO_BT_HOST_WAKE,
+			.end    = TEGRA_GPIO_BT_HOST_WAKE,
 			.flags  = IORESOURCE_IO,
 	},
 	[1] = {
 		.name = "gpio_ext_wake",
-			.start  = TEGRA_GPIO_PE7,
-			.end    = TEGRA_GPIO_PE7,
+			.start  = TEGRA_GPIO_HOST_BT_WAKE,
+			.end    = TEGRA_GPIO_HOST_BT_WAKE,
 			.flags  = IORESOURCE_IO,
 	},
 	[2] = {
@@ -133,9 +133,10 @@ static void __init enterprise_bt_rfkill(void)
 }
 static void __init enterprise_setup_bluesleep(void)
 {
-	enterprise_brcm_bluesleep_resources[2].start =
-	enterprise_brcm_bluesleep_resources[2].end =
-		gpio_to_irq(TEGRA_GPIO_PS2);
+	//enterprise_brcm_bluesleep_resources[2].start =
+	//enterprise_brcm_bluesleep_resources[2].end =
+	tegra_gpio_enable(TEGRA_GPIO_BT_HOST_WAKE);
+	tegra_gpio_enable(TEGRA_GPIO_HOST_BT_WAKE);
 	platform_device_register(&enterprise_brcm_bluesleep_device);
         return;
 }
@@ -185,7 +186,7 @@ static __initdata struct tegra_clk_init_table enterprise_clk_i2s4_table[] = {
 	{ "i2s4",	"pll_a_out0",	0,		false},
 	{ NULL,		NULL,		0,		0},
 };
-
+#if 1 
 static struct aic3256_gpio_setup aic3256_gpio[] = {
 	/* GPIO 1*/
 	{
@@ -210,6 +211,7 @@ static struct aic3256_gpio_setup aic3256_gpio[] = {
 		.used		= 0,
 	},
 };
+#endif
 
 static struct aic3xxx_pdata aic3256_codec_pdata = {
 	/* debounce time */
@@ -238,7 +240,7 @@ static struct i2c_board_info __initdata enterprise_bcm2079x_info = {
 static struct tegra_i2c_platform_data enterprise_i2c1_platform_data = {
 	.adapter_nr	= 0,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 100000, 0 },
+	.bus_clk_rate	= {400000, 0 }, 
 	.scl_gpio		= {TEGRA_GPIO_PC4, 0},
 	.sda_gpio		= {TEGRA_GPIO_PC5, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -257,7 +259,7 @@ static struct tegra_i2c_platform_data enterprise_i2c2_platform_data = {
 static struct tegra_i2c_platform_data enterprise_i2c3_platform_data = {
 	.adapter_nr	= 2,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 271000, 0 },
+	.bus_clk_rate	= {100000, 0 },
 	.scl_gpio		= {TEGRA_GPIO_PBB1, 0},
 	.sda_gpio		= {TEGRA_GPIO_PBB2, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -378,13 +380,13 @@ static struct max98088_pdata enterprise_max98088_pdata = {
 static struct i2c_board_info __initdata max98088_board_info = {
 	I2C_BOARD_INFO("max98088", 0x10),
 	.platform_data = &enterprise_max98088_pdata,
-	.irq = TEGRA_GPIO_HP_DET,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET), 
 };
 
 static struct i2c_board_info __initdata enterprise_codec_aic325x_info = {
 	I2C_BOARD_INFO("tlv320aic325x", 0x18),
 	.platform_data = &aic3256_codec_pdata,
-	.irq = TEGRA_GPIO_CDC_IRQ_N,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ_N), 
 };
 
 static void enterprise_i2c_init(void)
@@ -402,6 +404,7 @@ static void enterprise_i2c_init(void)
 	platform_device_register(&tegra_i2c_device1);
 
 	i2c_register_board_info(0, &max98088_board_info, 1);
+	enterprise_codec_aic325x_info.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ_N);
 	i2c_register_board_info(0, &enterprise_codec_aic325x_info, 1);
 	i2c_register_board_info(0, &enterprise_bcm2079x_info, 1);
 }
@@ -426,15 +429,34 @@ static struct tegra_uart_platform_data enterprise_loopback_uart_pdata;
 
 static void __init uart_debug_init(void)
 {
-	int debug_port_id;
+	unsigned long rate;
+	struct clk *c;
 
 	/* UARTD is the debug port. */
 	pr_info("Selecting UARTD as the debug console\n");
-	debug_port_id = uart_console_debug_init(3);
-	if (debug_port_id < 0)
-		return;
+	enterprise_uart_devices[3] = &debug_uartd_device;
+	debug_uart_port_base = ((struct plat_serial8250_port *)(
+			debug_uartd_device.dev.platform_data))->mapbase;
+	debug_uart_clk = clk_get_sys("serial8250.0", "uartd");
 
-	enterprise_uart_devices[debug_port_id] = uart_console_debug_device;
+	/* Clock enable for the debug channel */
+	if (!IS_ERR_OR_NULL(debug_uart_clk)) {
+		rate = ((struct plat_serial8250_port *)(
+			debug_uartd_device.dev.platform_data))->uartclk;
+		pr_info("The debug console clock name is %s\n",
+						debug_uart_clk->name);
+		c = tegra_get_clock_by_name("pll_p");
+		if (IS_ERR_OR_NULL(c))
+			pr_err("Not getting the parent clock pll_p\n");
+		else
+			clk_set_parent(debug_uart_clk, c);
+
+		clk_enable(debug_uart_clk);
+		clk_set_rate(debug_uart_clk, rate);
+	} else {
+		pr_err("Not getting the clock %s for debug console\n",
+				debug_uart_clk->name);
+	}
 }
 
 static void __init enterprise_uart_init(void)
@@ -504,44 +526,9 @@ static struct platform_device tegra_rtc_device = {
 	.num_resources = ARRAY_SIZE(tegra_rtc_resources),
 };
 
-static struct tegra_asoc_platform_data enterprise_audio_pdata = {
-	.gpio_spkr_en		= -1,
-	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
-	.gpio_hp_mute		= -1,
-	.gpio_int_mic_en	= -1,
-	.gpio_ext_mic_en	= -1,
-	.debounce_time_hp	= -1,
-	/*defaults for Enterprise board*/
-	.i2s_param[HIFI_CODEC]	= {
-		.audio_port_id	= 0,
-		.is_i2s_master	= 0,
-		.i2s_mode	= TEGRA_DAIFMT_I2S,
-		.sample_size	= 16,
-		.channels	    = 2,
-	},
-	.i2s_param[BASEBAND]	= {
-		.audio_port_id	= 2,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-		.sample_size	= 16,
-		.rate		= 8000,
-		.channels	= 1,
-		.bit_clk    = 2048000,
-	},
-	.i2s_param[BT_SCO]	= {
-		.audio_port_id	= 3,
-		.is_i2s_master	= 1,
-		.i2s_mode	= TEGRA_DAIFMT_DSP_A,
-		.sample_size	= 16,
-	},
-};
-
-static struct platform_device enterprise_audio_device = {
-	.name	= "tegra-snd-max98088",
-	.id	= 0,
-	.dev	= {
-		.platform_data  = &enterprise_audio_pdata,
-	},
+static struct platform_device tegra_camera = {
+	.name = "tegra_camera",
+	.id = -1,
 };
 
 static struct tegra_asoc_platform_data enterprise_audio_aic325x_pdata = {
@@ -558,6 +545,7 @@ static struct tegra_asoc_platform_data enterprise_audio_aic325x_pdata = {
 		.sample_size	= 16,
 	},
 };
+
 static struct platform_device enterprise_audio_aic325x_device = {
 	.name	= "tegra-snd-aic325x",
 	.id	= 0,
@@ -574,6 +562,7 @@ static struct platform_device *enterprise_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_AVP)
 	&tegra_avp_device,
 #endif
+	&tegra_camera,
 	&tegra_spi_device4,
 	&tegra_hda_device,
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_SE)
@@ -715,6 +704,7 @@ static struct tegra_usb_platform_data tegra_ehci2_hsic_xmm_pdata = {
 static struct tegra_usb_platform_data tegra_udc_pdata = {
 	.port_otg = true,
 	.has_hostpc = true,
+	//.builtin_host_disabled = false,
 	.id_det_type = TEGRA_USB_VIRTUAL_ID,
 	.phy_intf = TEGRA_USB_PHY_INTF_UTMI,
 	.op_mode = TEGRA_USB_OPMODE_DEVICE,
@@ -746,6 +736,7 @@ static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
 	.op_mode = TEGRA_USB_OPMODE_HOST,
 	.u_data.host = {
 		.vbus_gpio = -1,
+		//.vbus_reg = "usb_vbus",
 		.hot_plug = true,
 		.remote_wakeup_supported = true,
 		.power_off_on_suspend = true,
@@ -768,23 +759,23 @@ static struct tegra_usb_otg_data tegra_otg_pdata = {
 	.ehci_pdata = &tegra_ehci1_utmi_pdata,
 };
 
-static struct platform_device *
-tegra_usb_hsic_host_register(struct platform_device *ehci_dev)
+struct platform_device *tegra_usb_hsic_host_register(void)
 {
 	struct platform_device *pdev;
 	int val;
 
-	pdev = platform_device_alloc(ehci_dev->name, ehci_dev->id);
+	pdev = platform_device_alloc(tegra_ehci2_device.name,
+		tegra_ehci2_device.id);
 	if (!pdev)
 		return NULL;
 
-	val = platform_device_add_resources(pdev, ehci_dev->resource,
-						ehci_dev->num_resources);
+	val = platform_device_add_resources(pdev, tegra_ehci2_device.resource, 
+		tegra_ehci2_device.num_resources);
 	if (val)
 		goto error;
 
-	pdev->dev.dma_mask =  ehci_dev->dev.dma_mask;
-	pdev->dev.coherent_dma_mask = ehci_dev->dev.coherent_dma_mask;
+	pdev->dev.dma_mask =  tegra_ehci2_device.dev.dma_mask; 
+	pdev->dev.coherent_dma_mask = tegra_ehci2_device.dev.coherent_dma_mask; 
 
 	val = platform_device_add_data(pdev, &tegra_ehci2_hsic_xmm_pdata,
 			sizeof(struct tegra_usb_platform_data));
@@ -814,6 +805,13 @@ void tegra_usb_hsic_host_unregister(struct platform_device **platdev)
 		pr_err("%s: no platform device\n", __func__);
 }
 
+static void enterprise_usb_init(void)
+{
+	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
+	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
+	platform_device_register(&tegra_otg_device);
+}
+
 #ifdef CONFIG_BATTERY_BQ27x00
 //BQ27541 GasGauge
 static struct i2c_board_info   __initdata gen2_i2c_bq27541[] = {
@@ -837,31 +835,6 @@ static void __init tegra_enterprise_pwm_clk_init(void)
 	if (ret) 
 		pr_warning("Unable to enable clock %s: %d\n", enterprise_clk_init_table[3].name, ret);
 }
-
-static void enterprise_usb_init(void)
-{
-	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
-
-	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
-	platform_device_register(&tegra_otg_device);
-}
-
-static struct platform_device *enterprise_audio_devices[] __initdata = {
-	&tegra_ahub_device,
-	&tegra_dam_device0,
-	&tegra_dam_device1,
-	&tegra_dam_device2,
-	&tegra_i2s_device0,
-	&tegra_i2s_device1,
-	&tegra_i2s_device3,
-	&tegra_spdif_device,
-	&spdif_dit_device,
-	&bluetooth_dit_device,
-	&baseband_dit_device,
-	&tegra_pcm_device,
-	&enterprise_audio_device,
-	&enterprise_audio_aic325x_device,
-};
 
 static struct baseband_power_platform_data tegra_baseband_power_data = {
 	.baseband_type = BASEBAND_XMM,
@@ -893,6 +866,7 @@ static struct platform_device tegra_baseband_power2_device = {
 	},
 };
 
+#if 0
 static void enterprise_baseband_init(void)
 {
 	struct board_info board_info;
@@ -935,6 +909,7 @@ static void enterprise_baseband_init(void)
 #endif
 	}
 }
+#endif
 
 static void __init tegra_enterprise_init(void)
 {
@@ -978,6 +953,7 @@ static void __init tegra_enterprise_init(void)
 //	enterprise_bluedroid_pm();
 //#endif
 	enterprise_gps_init();
+	enterprise_setup_bluesleep();
 	enterprise_emc_init();
 	enterprise_sensors_init();
 	enterprise_suspend_init();
