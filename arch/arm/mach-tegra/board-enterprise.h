@@ -168,7 +168,7 @@ enum tegra_bb_type {
 
 /* Indicate the pwm of backlight, DC pwm or external pwm3. */
 /* External pwm is used for TAI (E1239) but do not set this compiler switch */
-#define IS_EXTERNAL_PWM		0
+#define IS_EXTERNAL_PWM		1
 
 //M470 GPIO Start
 #define TEGRA_GPIO_M470_HP_DET			 TEGRA_GPIO_PO5
