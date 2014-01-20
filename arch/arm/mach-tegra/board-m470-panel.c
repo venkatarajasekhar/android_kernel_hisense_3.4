@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-enterprise-panel.c
  *
- * Copyright (c) 2011-2013, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,45 +22,43 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/resource.h>
+#include <asm/mach-types.h>
 #include <linux/platform_device.h>
+#include <linux/earlysuspend.h>
 #include <linux/tegra_pwm_bl.h>
 #include <linux/pwm_backlight.h>
+#include <asm/atomic.h>
 #include <linux/nvhost.h>
 #include <linux/nvmap.h>
-
-#include <asm/mach-types.h>
-#include <asm/atomic.h>
-
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
 #include <mach/hardware.h>
 #include <mach/gpio-tegra.h>
+#include <mach/clk.h>
 #include <linux/clk.h>
 
 #include "board.h"
 #include "board-enterprise.h"
 #include "devices.h"
 #include "gpio-names.h"
-#include "fuse.h"
 #include "tegra3_host1x_devices.h"
 
-#define enterprise_en_lcd_1v8		TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
-#define enterprise_en_lcd_3v3		TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
-#define enterprise_lvds_shtdn_n		TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
+//for m470
+#define enterprise_en_lcd_1v8	TEGRA_GPIO_EN_LCD_1V8	//TEGRA_GPIO_PH5
+#define enterprise_en_lcd_3v3	TEGRA_GPIO_EN_LCD_3V3	//TEGRA_GPIO_PC6
+#define enterprise_lvds_shtdn_n	TEGRA_GPIO_LVDS_SHTDN_N	//TEGRA_GPIO_PN6
+#define enterprise_en_vdd_pnl	TEGRA_GPIO_EN_VDD_PNL	//TEGRA_GPIO_PW1
 #define enterprise_lcd_bl_en		TEGRA_GPIO_LCD_BL_EN	//TEGRA_GPIO_PH2
-#define enterprise_lcd_bl_pwm		TEGRA_GPIO_BL_PWM
+#define enterprise_lcd_bl_pwm	TEGRA_GPIO_BL_PWM
 #define enterprise_en_vdd_bl		TEGRA_GPIO_EN_VDD_BL	//TEGRA_GPIO_PH3
-#define enterprise_hdmi_hpd		TEGRA_GPIO_PN7
+#define enterprise_hdmi_hpd		TEGRA_GPIO_HDMI_HPD		//TEGRA_GPIO_PN7
 
+/* default brightness, heqi */
 #define DEFAULT_BRIGHTNESS		66
 
 #ifdef CONFIG_TEGRA_DC
-static struct regulator *enterprise_dsi_reg;
-static bool dsi_regulator_status;
-static struct regulator *enterprise_lcd_reg;
-
 static struct regulator *enterprise_hdmi_reg;
 static struct regulator *enterprise_hdmi_pll;
 static struct regulator *enterprise_hdmi_vddio;
@@ -69,6 +67,41 @@ static struct regulator *enterprise_hdmi_vddio;
 static atomic_t sd_brightness = ATOMIC_INIT(255);
 struct clk *disp1_emc_min_clk;
 static struct tegra_dc_platform_data enterprise_disp1_pdata;
+
+static tegra_dc_bl_output enterprise_bl_output_measured_a02 = {
+	1, 5, 9, 10, 11, 12, 12, 13,
+	13, 14, 14, 15, 15, 16, 16, 17,
+	17, 18, 18, 19, 19, 20, 21, 21,
+	22, 22, 23, 24, 24, 25, 26, 26,
+	27, 27, 28, 29, 29, 31, 31, 32,
+	32, 33, 34, 35, 36, 36, 37, 38,
+	39, 39, 40, 41, 41, 42, 43, 43,
+	44, 45, 45, 46, 47, 47, 48, 49,
+	49, 50, 51, 51, 52, 53, 53, 54,
+	55, 56, 56, 57, 58, 59, 60, 61,
+	61, 62, 63, 64, 65, 65, 66, 67,
+	67, 68, 69, 69, 70, 71, 71, 72,
+	73, 73, 74, 74, 75, 76, 76, 77,
+	77, 78, 79, 79, 80, 81, 82, 83,
+	83, 84, 85, 85, 86, 86, 88, 89,
+	90, 91, 91, 92, 93, 93, 94, 95,
+	95, 96, 97, 97, 98, 99, 99, 100,
+	101, 101, 102, 103, 103, 104, 105, 105,
+	107, 107, 108, 109, 110, 111, 111, 112,
+	113, 113, 114, 115, 115, 116, 117, 117,
+	118, 119, 119, 120, 121, 122, 123, 124,
+	124, 125, 126, 126, 127, 128, 129, 129,
+	130, 131, 131, 132, 133, 133, 134, 135,
+	135, 136, 137, 137, 138, 139, 139, 140,
+	142, 142, 143, 144, 145, 146, 147, 147,
+	148, 149, 149, 150, 151, 152, 153, 153,
+	153, 154, 155, 156, 157, 158, 158, 159,
+	160, 161, 162, 163, 163, 164, 165, 165,
+	166, 166, 167, 168, 169, 169, 170, 170,
+	171, 172, 173, 173, 174, 175, 175, 176,
+	176, 178, 178, 179, 180, 181, 182, 182,
+	183, 184, 185, 186, 186, 187, 188, 188
+};
 
 static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
 	0, 1, 2, 3, 4, 5, 6, 7,
@@ -114,20 +147,47 @@ static void enterprise_backlight_init(void)
 	tegra_gpio_disable(enterprise_lcd_bl_pwm);
 }
 
+static int brightness_old = 1;
 static int enterprise_backlight_notify(struct device *unused, int brightness)
 {
+         static int count = 0;
 	int cur_sd_brightness = atomic_read(&sd_brightness);
 
 	/* SD brightness is a percentage, 8-bit value. */
 	brightness = (brightness * cur_sd_brightness) / 255;
-
+	
 	/* Apply any backlight response curve */
 	if (brightness > 255)
 		pr_info("Error: Brightness > 255!\n");
 	else
-		brightness = bl_output[brightness];
+		brightness = (bl_output[brightness]*4)/5;//reduce bl 20% brightness
 
+         if (brightness != 0) 
+         {
+		if (!count)
+		{
+			printk("%s: brightness = %d\n", __func__, brightness);
+			count = 1;
+		}
+         }
+         else
+         {
+		count = 0;
+		gpio_set_value(enterprise_lcd_bl_en, 0);
+         }
+         
 	return brightness;
+}
+
+static void enterprise_backlight_notify_after(struct device *unused, int brightness)
+{
+	if ((brightness_old == 0) && (brightness != 0))
+	{
+		msleep(15);
+		gpio_set_value(enterprise_lcd_bl_en, 1);
+	} 
+
+	brightness_old = brightness;
 }
 
 static int enterprise_disp1_check_fb(struct device *dev, struct fb_info *info);
@@ -144,7 +204,6 @@ static struct platform_pwm_backlight_data enterprise_disp1_backlight_data = {
 	.check_fb	= enterprise_disp1_check_fb,
 };
 #else
-
 /*
  * In case which_pwm is TEGRA_PWM_PM0,
  * gpio_conf_to_sfio should be TEGRA_GPIO_PW0: set LCD_CS1_N pin to SFIO
@@ -229,7 +288,7 @@ static int enterprise_hdmi_enable(struct device *dev)
 		return ret;
 	}
 	if (!enterprise_hdmi_pll) {
-		enterprise_hdmi_pll = regulator_get(dev, "avdd_hdmi_pll");
+		enterprise_hdmi_pll = regulator_get(NULL, "avdd_hdmi_pll");
 		if (IS_ERR_OR_NULL(enterprise_hdmi_pll)) {
 			pr_err("hdmi: couldn't get regulator avdd_hdmi_pll\n");
 			enterprise_hdmi_pll = NULL;
@@ -259,6 +318,7 @@ static int enterprise_hdmi_disable(void)
 
 	return 0;
 }
+
 static struct resource enterprise_disp1_resources[] = {
 	{
 		.name	= "irq",
@@ -441,6 +501,7 @@ static struct tegra_dc_platform_data enterprise_disp2_pdata = {
 
 static int enterprise_panel_enable(struct device *dev)
 {
+
 	gpio_direction_output(enterprise_en_lcd_3v3, 1);
 	msleep(20);
 	gpio_direction_output(enterprise_en_lcd_1v8, 1);
@@ -486,8 +547,10 @@ static void enterprise_panel_bl_shutdown(void)
 
 	mdelay(300);
 }
+#endif
 
-static struct tegra_dc_mode enterprise_dsi_modes[] = {
+#ifdef CONFIG_TEGRA_DC
+static struct tegra_dc_mode enterprise_panel_modes[] = {
 	{
 		.pclk = 66770000,
 		.h_ref_to_sync = 1,
@@ -503,7 +566,7 @@ static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	},
 };
 
-static struct tegra_fb_data enterprise_dsi_fb_data = {
+static struct tegra_fb_data enterprise_fb_data = {
 	.win		= 0,
 	.xres		= 800,
 	.yres		= 1280,
@@ -523,8 +586,8 @@ static struct tegra_dc_out enterprise_disp1_out = {
 	.depth		= 24,
 	.dither		= TEGRA_DC_ORDERED_DITHER,
 
-	.modes		= enterprise_dsi_modes,
-	.n_modes	= ARRAY_SIZE(enterprise_dsi_modes),
+	.modes		= enterprise_panel_modes,
+	.n_modes	= ARRAY_SIZE(enterprise_panel_modes),
 
 	.enable		= enterprise_panel_enable,
 	.disable	= enterprise_panel_disable,
@@ -538,7 +601,7 @@ static struct tegra_dc_platform_data enterprise_disp1_pdata = {
 	.default_out	= &enterprise_disp1_out,
 	.emc_clk_rate	= 204000000,
 	.min_emc_clk_rate = 204000000,
-	.fb		= &enterprise_dsi_fb_data,
+	.fb		= &enterprise_fb_data,
 };
 
 static struct platform_device enterprise_disp1_device = {
@@ -565,7 +628,7 @@ static struct platform_device enterprise_disp2_device = {
 		.platform_data = &enterprise_disp2_pdata,
 	},
 };
-#endif // CONFIG_TEGRA_DC
+#endif
 
 #if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout enterprise_carveouts[] = {
@@ -597,7 +660,11 @@ static struct platform_device *enterprise_gfx_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_NVMAP)
 	&enterprise_nvmap_device,
 #endif
+#if IS_EXTERNAL_PWM
 	&tegra_pwfm0_device,
+#else
+	&tegra_pwfm0_device,
+#endif
 };
 
 static struct platform_device *enterprise_bl_devices[]  = {
@@ -648,6 +715,7 @@ int __init enterprise_panel_init(void)
 	tegra_get_board_info(&board_info);
 
 	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
+	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
 
 	bl_output = enterprise_bl_output_measured_a03;
 
@@ -655,22 +723,8 @@ int __init enterprise_panel_init(void)
 	enterprise_carveouts[1].base = tegra_carveout_start;
 	enterprise_carveouts[1].size = tegra_carveout_size;
 #endif
-#if 0
-	err = gpio_request(enterprise_hdmi_hpd, "hdmi_hpd");
-	if (err < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, err);
-		return err;
-	}
-	err = gpio_direction_input(enterprise_hdmi_hpd);
-	if (err < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n",
-			__func__, err);
-		gpio_free(enterprise_hdmi_hpd);
-		return err;
-	}
-#endif
-		err = platform_add_devices(enterprise_gfx_devices,
-			ARRAY_SIZE(enterprise_gfx_devices));
+
+	gpio_direction_input(enterprise_hdmi_hpd);
 
 	enterprise_backlight_init();
 
@@ -687,6 +741,9 @@ int __init enterprise_panel_init(void)
 		return -EINVAL;
 #endif
 
+	err = platform_add_devices(enterprise_gfx_devices,
+				ARRAY_SIZE(enterprise_gfx_devices));
+
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	res = platform_get_resource_byname(&enterprise_disp1_device,
 					 IORESOURCE_MEM, "fbmem");
@@ -695,15 +752,14 @@ int __init enterprise_panel_init(void)
 #endif
 
 	/* Copy the bootloader fb to the fb. */
-	__tegra_move_framebuffer(&enterprise_nvmap_device,
-		tegra_fb_start, tegra_bootloader_fb_start,
+	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
 		min(tegra_fb_size, tegra_bootloader_fb_size));
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	if (!err) {
 		enterprise_disp1_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp1_device);
-	}
+}
 
 	disp1_emc_min_clk = clk_get(&enterprise_disp1_device.dev, "emc_min");
 	if (IS_ERR(disp1_emc_min_clk)) {
@@ -718,20 +774,19 @@ int __init enterprise_panel_init(void)
 	if (!err) {
 		enterprise_disp2_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&enterprise_disp2_device);
-	}
+}
 #endif
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_NVAVP)
 	if (!err) {
 		nvavp_device.dev.parent = &phost1x->dev;
 		err = platform_device_register(&nvavp_device);
-	}
+}
 #endif
 
 	if (!err)
 		err = platform_add_devices(enterprise_bl_devices,
 				ARRAY_SIZE(enterprise_bl_devices));
-
 	return err;
 }
 
