@@ -79,29 +79,77 @@
 #include "pm.h"
 #include "common.h"
 
+extern unsigned int his_hw_ver;
+extern unsigned int his_board_version;
+
 #ifdef CONFIG_TOUCHSCREEN_FT5X06
 #include <linux/i2c/ft5x06_ts.h>
 #endif
 
-#ifdef CONFIG_BT_BLUESLEEP
-static struct rfkill_gpio_platform_data enterprise_bt_rfkill_pdata[] = {
+static struct resource enterprise_bluedroid_pm_resources1[] = {
+	[0] = {
+		.name   = "shutdown_gpio",
+		.start  = TEGRA_GPIO_BT_REG_ON,
+		.end    = TEGRA_GPIO_BT_REG_ON,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.name   = "reset_gpio",
+		.start  = TEGRA_GPIO_PD4,
+		.end    = TEGRA_GPIO_PD4,
+		.flags  = IORESOURCE_IO,
+	},
+};
+
+static struct platform_device enterprise_bluedroid_pm_device1 = {
+	.name = "bluedroid_pm",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(enterprise_bluedroid_pm_resources1),
+	.resource       = enterprise_bluedroid_pm_resources1,
+};
+
+static struct resource enterprise_bluedroid_pm_resources2[] = {
+	[0] = {
+		.name   = "shutdown_gpio",
+		.start  = TEGRA_GPIO_BT_REG_ON,
+		.end    = TEGRA_GPIO_BT_REG_ON,
+		.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.name   = "reset_gpio",
+		.start  = TEGRA_GPIO_PW2,
+		.end    = TEGRA_GPIO_PW2,
+		.flags  = IORESOURCE_IO,
+	},
+};
+
+static struct platform_device enterprise_bluedroid_pm_device2 = {
+	.name = "bluedroid_pm",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(enterprise_bluedroid_pm_resources2),
+	.resource       = enterprise_bluedroid_pm_resources2,
+};
+
+static void __init enterprise_bluedroid_pm(void)
+{
+	struct board_info board_info;
+	tegra_get_board_info(&board_info);
+
+    if(his_board_version==1){
+        	printk("sunzizhi add hw_ver is %d\n",his_board_version);
+        	platform_device_register(&enterprise_bluedroid_pm_device1);
+	}
+    else
 	{
-		.name           = "bt_rfkill",
-		.shutdown_gpio  = TEGRA_GPIO_PE6,
-		.reset_gpio     = TEGRA_GPIO_INVALID,
-		.type           = RFKILL_TYPE_BLUETOOTH,
-	},
-};
+            printk("sunzizhi add hw_ver is %d\n",his_board_version);
+            platform_device_register(&enterprise_bluedroid_pm_device2);
+	}
+	return;
+}
 
-static struct platform_device enterprise_bt_rfkill_device = {
-	.name = "rfkill_gpio",
-	.id		= -1,
-	.dev = {
-		.platform_data = &enterprise_bt_rfkill_pdata,
-	},
-};
 
-static struct resource enterprise_brcm_bluesleep_resources[] = {
+
+static struct resource enterprise_bluesleep_resources[] = {
 	[0] = {
 		.name = "gpio_host_wake",
 			.start  = TEGRA_GPIO_BT_HOST_WAKE,
@@ -116,32 +164,29 @@ static struct resource enterprise_brcm_bluesleep_resources[] = {
 	},
 	[2] = {
 		.name = "host_wake",
-			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+			.start  = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_BT_HOST_WAKE),
+			.end    = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_BT_HOST_WAKE),
+			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+//			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 
-static struct platform_device enterprise_brcm_bluesleep_device = {
+static struct platform_device enterprise_bluesleep_device = {
 	.name           = "bluesleep",
 	.id             = -1,
-	.num_resources  = ARRAY_SIZE(enterprise_brcm_bluesleep_resources),
-	.resource       = enterprise_brcm_bluesleep_resources,
+	.num_resources  = ARRAY_SIZE(enterprise_bluesleep_resources),
+	.resource       = enterprise_bluesleep_resources,
 };
-static void __init enterprise_bt_rfkill(void)
-{
-	platform_device_register(&enterprise_bt_rfkill_device);
-	return;
-}
+//extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
+
 static void __init enterprise_setup_bluesleep(void)
 {
-	//enterprise_brcm_bluesleep_resources[2].start =
-	//enterprise_brcm_bluesleep_resources[2].end =
+	platform_device_register(&enterprise_bluesleep_device);
+//	bluesleep_setup_uart_port(&tegra_uartc_device);
 	tegra_gpio_enable(TEGRA_GPIO_BT_HOST_WAKE);
 	tegra_gpio_enable(TEGRA_GPIO_HOST_BT_WAKE);
-	platform_device_register(&enterprise_brcm_bluesleep_device);
-        return;
+	return;
 }
-
-#endif
 
 static void __init enterprise_gps_init(void)
 {
@@ -942,16 +987,15 @@ static void __init tegra_enterprise_init(void)
 #ifdef CONFIG_TEGRA_EDP_LIMITS
 	enterprise_edp_init();
 #endif
-	enterprise_kbc_init();
+//	enterprise_kbc_init();
+	enterprise_keys_init();
 #ifdef CONFIG_TOUCHSCREEN_FT5X06
 	enterprise_ft5x06_touch_init();
 #endif
 //	enterprise_audio_init();
 //	enterprise_baseband_init();
 	enterprise_panel_init();
-//#ifdef CONFIG_BLUEDROID_PM
-//	enterprise_bluedroid_pm();
-//#endif
+	enterprise_bluedroid_pm();
 	enterprise_gps_init();
 	enterprise_setup_bluesleep();
 	enterprise_emc_init();
