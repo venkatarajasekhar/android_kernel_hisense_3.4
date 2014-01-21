@@ -1830,7 +1830,7 @@ static int __init ft5x0x_ts_init(void)
 {
 	int ret;
 	ret = i2c_add_driver(&ft5x0x_ts_driver);
-	debug_mask = 0;
+	debug_mask = 1;
 	if (ret) {
 		printk(KERN_WARNING "Adding ft5x0x driver failed "
 		       "(errno = %d)\n", ret);
