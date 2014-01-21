@@ -213,6 +213,7 @@ struct aic3xxx {
 	bool suspended;
 	u8 book_no;
 	u8 page_no;
+	int shutdown_complete;
 	struct workqueue_struct *irq_workqueue;
 	struct delayed_work irq_delayed_work;
 	struct wake_lock irq_wake_lock;

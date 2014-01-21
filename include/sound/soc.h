@@ -611,6 +611,10 @@ struct snd_soc_codec {
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
+	struct delayed_work dwork;
+	struct delayed_work keydown_work;
+	struct delayed_work keyup_work;
+	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_codec_root;
