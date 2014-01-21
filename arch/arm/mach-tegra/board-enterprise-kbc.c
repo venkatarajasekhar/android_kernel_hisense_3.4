@@ -169,14 +169,11 @@ int __init enterprise_keys_init(void)
 	int i;
 
 	pr_info("Registering gpio keys\n");
-	
-			
 	/* Enable gpio mode for other pins */
 	for (i = 0; i < m470_keys_pdata.nbuttons; i++)
 	{
 	  tegra_gpio_enable(m470_keys_pdata.buttons[i].gpio);
 	}
-		        
 	platform_device_register(&m470_keys_device);
 	pr_info("%s() -- > %d\n", __func__, __LINE__);
 	/* Register on-key through pmu interrupt */
