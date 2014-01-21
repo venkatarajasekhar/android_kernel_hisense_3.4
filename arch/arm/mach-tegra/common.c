@@ -44,6 +44,9 @@
 #include <asm/system.h>
 #include <asm/dma-mapping.h>
 
+#include <mach/gpio.h>
+#include <mach/pinmux.h>
+#include <mach/system.h>
 #include <mach/hardware.h>
 #include <mach/iomap.h>
 #include <mach/powergate.h>
@@ -77,9 +80,16 @@
 #define   DONT_SPLIT_AHB_WR     BIT(7)
 #define   WR_WAIT_COMMIT_ON_1K	BIT(8)
 
-#define   RECOVERY_MODE	BIT(31)
-#define   BOOTLOADER_MODE	BIT(30)
-#define   FORCED_RECOVERY_MODE	BIT(1)
+#define   RECOVERY_MODE	BIT(31) //recovery kernel boot
+#define   BOOTLOADER_MODE	BIT(30) //fastboot mode
+#define   FORCED_RECOVERY_MODE	BIT(1) //nvflash mode
+#define   UPDATE_PT_REBOOT	BIT(5)
+#define   TF_DOWNLOAD_REBOOT	BIT(6)
+#define   RTC_CHARGER_REBOOT	BIT(7) //rtc charger reboot mode
+#define   POWER_OFF_REBOOT	BIT(14) //reboot for power off mode when plugin AC, reboot poweroff
+#define   RECOVERY_EKS_REBOOT BIT(15) //reboot eks
+#define   WARM_REBOOT	BIT(29)
+#define   EMERGENCY_REBOOT BIT(28) //kernel crash
 
 #define AHB_GIZMO_USB		0x1c
 #define AHB_GIZMO_USB2		0x78
@@ -186,6 +196,60 @@ u32 tegra_uart_config[3] = {
 
 #define NEVER_RESET 0
 
+//wangyongqing added start 
+void NvEnterWarmRebootMode(void)
+{
+    void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0x00);
+    u32 reg;
+    
+    reg = readl_relaxed(reset + PMC_SCRATCH0);
+    reg |= WARM_REBOOT;
+    writel_relaxed(reg, reset + PMC_SCRATCH0);
+
+    printk(KERN_INFO  "%s(): enter warm reboot\n", __func__);
+}
+EXPORT_SYMBOL(NvEnterWarmRebootMode);
+
+void NvLeaveWarmRebootMode(void)
+{
+    void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0x00);
+    u32 reg;
+    
+    reg = readl_relaxed(reset + PMC_SCRATCH0);
+    reg &= ~(WARM_REBOOT);
+    writel_relaxed(reg, reset + PMC_SCRATCH0);
+    
+    printk(KERN_INFO  "%s(): leave warm reboot\n", __func__);
+}
+EXPORT_SYMBOL(NvLeaveWarmRebootMode);
+
+void NvEnterEmergencyRebootMode(void)
+{
+    void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0x00);
+    u32 reg;
+    
+    reg = readl_relaxed(reset + PMC_SCRATCH0);
+    reg |= EMERGENCY_REBOOT;
+    writel_relaxed(reg, reset + PMC_SCRATCH0);
+
+    printk(KERN_INFO  "%s(): enter emergency reboot\n", __func__);
+}
+EXPORT_SYMBOL(NvEnterEmergencyRebootMode);
+
+void NvLeaveEmergencyRebootMode(void)
+{
+    void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0x00);
+    u32 reg;
+    
+    reg = readl_relaxed(reset + PMC_SCRATCH0);
+    reg &= ~(EMERGENCY_REBOOT);
+    writel_relaxed(reg, reset + PMC_SCRATCH0);
+    
+    printk(KERN_INFO  "%s(): leave emergency reboot\n", __func__);
+}
+EXPORT_SYMBOL(NvLeaveEmergencyRebootMode);
+//wangyongqing added end 
+
 void tegra_assert_system_reset(char mode, const char *cmd)
 {
 #if defined(CONFIG_TEGRA_FPGA_PLATFORM) || NEVER_RESET
@@ -204,12 +268,18 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 			reg |= BOOTLOADER_MODE;
 		else if (!strcmp(cmd, "forced-recovery"))
 			reg |= FORCED_RECOVERY_MODE;
+		else if (!strcmp(cmd, "oem-alarm"))
+		        reg |= RTC_CHARGER_REBOOT;	
+		else if (!strcmp(cmd, "poweroff"))
+		        reg |= POWER_OFF_REBOOT;        
+		else if (!strcmp(cmd, "eks"))
+		        reg |= RECOVERY_EKS_REBOOT;
 		else
-			reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE);
+			reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE | RTC_CHARGER_REBOOT | POWER_OFF_REBOOT | RECOVERY_EKS_REBOOT);
 	}
 	else {
 		/* Clearing SCRATCH0 31:30:1 on default reboot */
-		reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE);
+		reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE | RTC_CHARGER_REBOOT | POWER_OFF_REBOOT | RECOVERY_EKS_REBOOT);
 	}
 	writel_relaxed(reg, reset + PMC_SCRATCH0);
 	reg = readl_relaxed(reset);
