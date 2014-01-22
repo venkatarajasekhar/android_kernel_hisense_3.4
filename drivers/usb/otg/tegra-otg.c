@@ -52,11 +52,11 @@
 #define USB_VBUS_INT_STS_MASK	(0x7 << 8)
 #define USB_ID_INT_STS_MASK	(0x7 << 0)
 
-//#ifdef OTG_DEBUG
+#ifdef OTG_DEBUG
 #define DBG(stuff...)	pr_info("tegra-otg: " stuff)
-//#else
-//#define DBG(stuff...)	do {} while (0)
-//#endif
+#else
+#define DBG(stuff...)	do {} while (0)
+#endif
 
 #ifdef CONFIG_CHARGER_TPS8003X
 extern void tegra_vbus_detect_event(bool plug);
