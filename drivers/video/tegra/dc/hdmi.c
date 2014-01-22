@@ -49,6 +49,10 @@
 #include "hdmi.h"
 #include "edid.h"
 #include "nvhdcp.h"
+#ifdef CONFIG_CHARGER_TPS8003X
+#include <linux/tps80031-charger.h>
+extern enum charging_type tps8003x_charger_type(void);
+#endif
 
 /* datasheet claims this will always be 216MHz */
 #define HDMI_AUDIOCLK_FREQ		216000000
@@ -72,6 +76,23 @@
      addition/removal from tegra_dc_hdmi_aspect_ratios[] */
 #define TEGRA_DC_HDMI_MIN_ASPECT_RATIO_PERCENT	80
 #define TEGRA_DC_HDMI_MAX_ASPECT_RATIO_PERCENT	320
+
+/* Percentage equivalent of standard aspect ratios
+    accurate upto two decimal digits */
+static int tegra_dc_hdmi_aspect_ratios[] = {
+	/*   3:2	*/	150,
+	/*   4:3	*/	133,
+	/*   4:5	*/	 80,
+	/*   5:4	*/	125,
+	/*   9:5	*/	180,
+	/*  16:5	*/	320,
+	/*  16:9	*/	178,
+	/* 16:10	*/	160,
+	/* 19:10	*/	190,
+	/* 25:16	*/	156,
+	/* 64:35	*/	183,
+	/* 72:35	*/	206
+};
 
 struct tegra_dc_hdmi_data {
 	struct tegra_dc			*dc;
@@ -890,6 +911,13 @@ fail:
 }
 EXPORT_SYMBOL(tegra_dc_hdmi_detect_test);
 
+#if defined(CONFIG_TOUCHSCREEN_FT5X06)
+/* Add for notify touchscreen that USB/AC is plugged in, heqi */
+extern void ft5x0x_anti_interference_open(void);
+extern void ft5x0x_anti_interference_close(void);
+#endif
+int tegra_dc_hdmi_state = 0;
+
 static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 {
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
@@ -933,6 +961,11 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 		tegra_dc_hdmi_detect_config(dc, &specs);
 	}
 
+#if defined(CONFIG_TOUCHSCREEN_FT5X06)
+	ft5x0x_anti_interference_open();
+#endif
+	tegra_dc_hdmi_state = 1;
+
 success:
 #ifdef CONFIG_ANDROID
 	mutex_unlock(&dc->lock);
@@ -941,6 +974,12 @@ success:
 	return true;
 
 fail:
+#if defined(CONFIG_TOUCHSCREEN_FT5X06)	
+	if(!(tps8003x_charger_type() == AC_CHARGER || tps8003x_charger_type() == USB_CHARGER))
+		ft5x0x_anti_interference_close();
+#endif
+	tegra_dc_hdmi_state = 0;
+
 #ifdef CONFIG_ANDROID
 	mutex_unlock(&dc->lock);
 #endif /* CONFIG_ANDROID */
