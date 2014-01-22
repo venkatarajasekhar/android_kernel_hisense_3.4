@@ -205,6 +205,7 @@
 #define HDMI_NV_PDISP_SOR_PLL0					0x57
 #define  SOR_PLL_PWR_OFF			(1 << 0)
 #define  SOR_PLL_RESISTORSEL_EXT		(1 << 4)
+#define  SOR_PLL_RESISTORSEL			(1 << 4)
 #define  SOR_PLL_VCOCAP(x)			(((x) & 0xf) << 8)
 #define  SOR_PLL_BG_V17_S(x)			(((x) & 0xf) << 12)
 #define  SOR_PLL_FILTER(x)			(((x) & 0xf) << 16)
