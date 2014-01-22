@@ -462,7 +462,11 @@ static struct tegra_dc_sd_settings enterprise_sd_settings = {
 			},
 		},
 	.sd_brightness = &sd_brightness,
+#if IS_EXTERNAL_PWM
+	.bl_device_name = "pwm-backlight",
+#else
 	.bl_device_name = "tegra-pwm-bl",
+#endif
 };
 
 static struct tegra_fb_data enterprise_hdmi_fb_data = {
