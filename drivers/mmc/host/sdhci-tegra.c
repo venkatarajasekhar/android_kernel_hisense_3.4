@@ -42,6 +42,7 @@
 #include <mach/sdhci.h>
 #include <mach/pinmux.h>
 #include <mach/clk.h>
+#include <mach/io_dpd.h> 
 
 #include "sdhci-pltfm.h"
 
@@ -61,6 +62,7 @@
 #define SDHCI_VNDR_MISC_CTRL_ENABLE_DDR50_SUPPORT	0x200
 #define SDHCI_VNDR_MISC_CTRL_ENABLE_SD_3_0	0x20
 #define SDHCI_VNDR_MISC_CTRL_INFINITE_ERASE_TIMEOUT	0x1
+
 
 #define SDMMC_SDMEMCOMPPADCTRL	0x1E0
 #define SDMMC_SDMEMCOMPPADCTRL_VREF_SEL_MASK	0xF
@@ -89,12 +91,23 @@
 
 #define MMC_TUNING_BLOCK_SIZE_BUS_WIDTH_8	128
 #define MMC_TUNING_BLOCK_SIZE_BUS_WIDTH_4	64
-#define MAX_TAP_VALUES	255
 #define TUNING_FREQ_COUNT	2
 #define TUNING_VOLTAGES_COUNT	2
 #define TUNING_RETRIES	1
 #define SDMMC_AHB_MAX_FREQ	150000000
 #define SDMMC_EMC_MAX_FREQ	150000000
+
+#define TEGRA_SDHOST_MIN_FREQ	50000000
+#define TEGRA2_SDHOST_STD_FREQ	50000000
+#define TEGRA3_SDHOST_STD_FREQ	104000000
+
+#define SD_SEND_TUNING_PATTERN	19
+#define MAX_TAP_VALUES	256
+
+static unsigned int tegra_sdhost_min_freq;
+static unsigned int tegra_sdhost_std_freq;
+extern unsigned int his_hw_ver;
+extern unsigned int his_board_version;
 
 static unsigned int uhs_max_freq_MHz[] = {
 	[MMC_TIMING_UHS_SDR50] = 100,
@@ -104,6 +117,7 @@ static unsigned int uhs_max_freq_MHz[] = {
 
 #if defined(CONFIG_ARCH_TEGRA_3x_SOC)
 static void tegra_3x_sdhci_set_card_clock(struct sdhci_host *sdhci, unsigned int clock);
+static void tegra3_sdhci_post_reset_init(struct sdhci_host *sdhci);
 #endif
 
 struct tegra_sdhci_hw_ops {
@@ -1130,6 +1144,18 @@ static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 		mmc_hostname(sdhci->mmc), clock, tegra_host->clk_enabled);
 
 	if (clock) {
+		/* bring out sd instance from io dpd mode */
+		/*start sunzizhi add to delate wifi dpd mode for hw1*/
+		if((his_board_version == 0) || (his_board_version == 2) || (his_board_version == 3)){
+		if (tegra_host->dpd) {
+			mutex_lock(&tegra_host->dpd->delay_lock);
+			cancel_delayed_work_sync(&tegra_host->dpd->delay_dpd);
+			tegra_io_dpd_disable(tegra_host->dpd);
+			mutex_unlock(&tegra_host->dpd->delay_lock);
+		}
+			             }
+		/*end sunzizhi add to delate wifi dpd mode for hw1*/
+
 		if (!tegra_host->clk_enabled) {
 			pm_runtime_get_sync(&pdev->dev);
 			clk_prepare_enable(pltfm_host->clk);
@@ -1166,6 +1192,23 @@ static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 		clk_disable_unprepare(pltfm_host->clk);
 		pm_runtime_put_sync(&pdev->dev);
 		tegra_host->clk_enabled = false;
+		/* io dpd enable call for sd instance */
+
+		if (tegra_host->dpd) {
+			/*start sunzizhi add to delate wifi dpd mode for hw1*/
+			if((his_board_version == 0) || (his_board_version == 2) || (his_board_version == 3)){
+			mutex_lock(&tegra_host->dpd->delay_lock);
+			if (tegra_host->dpd->need_delay_dpd) {
+				schedule_delayed_work(
+					&tegra_host->dpd->delay_dpd,
+					msecs_to_jiffies(100));
+			} else {
+				tegra_io_dpd_enable(tegra_host->dpd);
+			}
+			mutex_unlock(&tegra_host->dpd->delay_lock);
+				             }
+			/*end sunzizhi add to delate wifi dpd mode for hw1*/
+		}
 	}
 }
 
@@ -1790,6 +1833,12 @@ static int sdhci_tegra_execute_tuning(struct sdhci_host *sdhci, u32 opcode)
 	struct tap_window_data *tap_data;
 	int err;
 	u16 ctrl_2;
+	u8 tap_buf[MAX_TAP_VALUES];
+	u8 *tap_delay_status;
+	unsigned int temp_low_pass_tap = 0;
+	unsigned int temp_pass_window = 0;
+	unsigned int best_low_pass_tap = 0;
+	unsigned int best_pass_window = 0;
 	u32 ier;
 	unsigned int freq_band;
 	unsigned int i;
@@ -2501,15 +2550,17 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	}
 
 	if (gpio_is_valid(plat->cd_gpio)) {
-		rc = gpio_request(plat->cd_gpio, "sdhci_cd");
-		if (rc) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to allocate cd gpio\n");
-			goto err_cd_req;
-		}
+		//rc = gpio_request(plat->cd_gpio, "sdhci_cd");
+		//if (rc) {
+		//	dev_err(mmc_dev(host->mmc),
+		//		"failed to allocate cd gpio\n");
+		//	goto err_cd_req;
+		//}
 		gpio_direction_input(plat->cd_gpio);
 
 		tegra_host->card_present = (gpio_get_value(plat->cd_gpio) == 0);
+		dev_err(mmc_dev(host->mmc),"*** %s %d cd_gpio = %d, present = %d***\n", __func__,__LINE__, plat->cd_gpio, 
+			tegra_host->card_present);
 
 		rc = request_threaded_irq(gpio_to_irq(plat->cd_gpio), NULL,
 				 carddetect_irq,
@@ -2722,9 +2773,9 @@ err_wp_req:
 err_cd_irq_req:
 	if (gpio_is_valid(plat->cd_gpio))
 		gpio_free(plat->cd_gpio);
-err_cd_req:
-	if (gpio_is_valid(plat->power_gpio))
-		gpio_free(plat->power_gpio);
+//err_cd_req:
+//	if (gpio_is_valid(plat->power_gpio))
+//		gpio_free(plat->power_gpio);
 err_power_req:
 err_no_plat:
 	sdhci_pltfm_free(pdev);

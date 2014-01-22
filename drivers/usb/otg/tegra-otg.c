@@ -35,6 +35,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/extcon.h>
 #include <linux/gpio.h>
+#include <linux/wakelock.h> 
+#include <linux/tps80031-charger.h> 
 
 #define USB_PHY_WAKEUP		0x408
 #define  USB_ID_INT_EN		(1 << 0)
@@ -50,10 +52,16 @@
 #define USB_VBUS_INT_STS_MASK	(0x7 << 8)
 #define USB_ID_INT_STS_MASK	(0x7 << 0)
 
-#ifdef OTG_DEBUG
+//#ifdef OTG_DEBUG
 #define DBG(stuff...)	pr_info("tegra-otg: " stuff)
-#else
-#define DBG(stuff...)	do {} while (0)
+//#else
+//#define DBG(stuff...)	do {} while (0)
+//#endif
+
+#ifdef CONFIG_CHARGER_TPS8003X
+extern void tegra_vbus_detect_event(bool plug);
+extern bool tps8003x_vbus_status(void);
+extern enum charging_type tps8003x_charger_type(void);
 #endif
 
 struct tegra_otg_data {

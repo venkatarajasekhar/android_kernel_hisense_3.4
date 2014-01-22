@@ -31,6 +31,8 @@ struct tegra_io_dpd {
 
 /* Tegra io dpd APIs */
 struct tegra_io_dpd *tegra_io_dpd_get(struct device *dev); /* get handle */
+struct tegra_io_dpd *tegra_io_dpd_get_sdhci(void); /* get handle */
+
 void tegra_io_dpd_enable(struct tegra_io_dpd *hnd); /* enable dpd */
 void tegra_io_dpd_disable(struct tegra_io_dpd *hnd); /* disable dpd */
 int tegra_io_dpd_init(void);
