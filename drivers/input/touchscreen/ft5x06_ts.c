@@ -1432,7 +1432,7 @@ static ssize_t ft5x0x_tprwreg_store(struct device *dev,
 	struct i2c_client *client;
 	ssize_t num_read_chars = 0;
 	int retval;
-	u16 wmreg=0;
+	long unsigned int wmreg=0;
 	u8 regaddr=0xff,regvalue=0xff;
 	u8 valbuf[5];
 
